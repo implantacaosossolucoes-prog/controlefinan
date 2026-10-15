@@ -214,12 +214,12 @@ function resetB(b){b.textContent=b.classList.contains('pay')?'Pagar':'✕';b.sty
 $('badd').onclick=async()=>{
   const value=parseFloat($('bval').value),due=$('bdue').value;
   if(!(value>0)||!due){note('Informe o valor e o vencimento da conta.');return}
-  if(!db){note('Sem conexão com o banco de dados. Abra o link pelo claude.ai.');return}
+  if(!db){note('Armazenamento local indisponível. Recarregue a página.');return}
   try{
     await db.collection('contas').add({desc:$('bdesc').value.trim(),value,due,ts:Date.now()});
     $('bdesc').value='';$('bval').value='';$('bdue').value='';note('');
     toast('✅ Conta adicionada: '+brl(value),'#2563eb');
-  }catch(err){note('Não foi possível salvar a conta. Verifique se você tem permissão de Colaborador.')}
+  }catch(err){note('Não foi possível salvar neste navegador. Verifique o espaço disponível.')}
 };
 $('bills').onclick=async e=>{
   const b=e.target.closest('.pay,.bx');
@@ -239,7 +239,7 @@ $('bills').onclick=async e=>{
     }
     await db.collection('contas').doc(b.dataset.id).delete();
     barmed=null;note('');
-  }catch(err){note('Não foi possível concluir. Seu acesso precisa ser de Colaborador ou superior.')}
+  }catch(err){note('Não foi possível concluir a operação neste navegador. Verifique o espaço disponível.')}
 };
 let cows=[],carmed=null;
 const addM=(s,n)=>{const [y,m,d]=s.split('-').map(Number);const last=new Date(y,m+n,0).getDate();return iso(new Date(y,m-1+n,Math.min(d,last)))};
@@ -261,12 +261,12 @@ $('call').onclick=()=>{$('cfrom').value='';$('cto').value='';renderCows()};
 $('cadd').onclick=async()=>{
   const cio=$('cdate').value,nome=$('cname').value.trim();
   if(!nome||!cio){note('Informe o nome da vaca e a data do cio.');return}
-  if(!db){note('Sem conexão com o banco de dados. Abra o link pelo claude.ai.');return}
+  if(!db){note('Armazenamento local indisponível. Recarregue a página.');return}
   try{
     await db.collection('vacas').add({nome,cio,parto:addM(cio,9),ts:Date.now()});
     $('cname').value='';const pp=addM(cio,9),f=$('cfrom').value,u=$('cto').value;note((f&&pp<f)||(u&&pp>u)?'Vaca registrada, mas fora do filtro atual. Toque em "Mostrar todas" para ver.':'');
     toast('✅ '+nome+': parto previsto em '+dd(addM(cio,9)),'#2563eb');
-  }catch(err){note('Não foi possível salvar. Verifique se você tem permissão de Colaborador.')}
+  }catch(err){note('Não foi possível salvar neste navegador. Verifique o espaço disponível.')}
 };
 $('cows').onclick=async e=>{
   const b=e.target.closest('.cx');
@@ -277,7 +277,7 @@ $('cows').onclick=async e=>{
     setTimeout(()=>{if(carmed===b&&b.isConnected){b.textContent='✕';b.style.color='';b.style.fontWeight='';carmed=null}},4000);
     return;
   }
-  try{await db.collection('vacas').doc(b.dataset.id).delete();carmed=null;note('')}catch(err){note('Não foi possível remover. Seu acesso precisa ser de Colaborador ou superior.')}
+  try{await db.collection('vacas').doc(b.dataset.id).delete();carmed=null;note('')}catch(err){note('Não foi possível remover neste navegador. Verifique o espaço disponível.')}
 };
 let users={},usersOk=false,me=null;
 const ALLOWED=['gabriel','alipio'];
@@ -300,7 +300,7 @@ $('lgo').onclick=async()=>{
   if(p.length<4){$('lmsg').textContent='A senha precisa ter pelo menos 4 caracteres.';return}
   const h=await sha(n+':'+p);
   if(!users[n]){
-    try{await db.collection('config').doc('usuarios').set({...users,[n]:h})}catch(e){$('lmsg').textContent='Não foi possível criar a senha. Verifique sua permissão de Colaborador.';return}
+    try{await db.collection('config').doc('usuarios').set({...users,[n]:h})}catch(e){$('lmsg').textContent='Não foi possível salvar a senha neste navegador. Verifique o espaço disponível.';return}
     users[n]=h;
   }else if(users[n]!==h){$('lmsg').textContent='Senha incorreta.';return}
   try{localStorage.setItem('cf_sess',JSON.stringify({n,h}))}catch(e){}
@@ -317,7 +317,7 @@ $('initRow').onclick=async e=>{
   else if(e.target.id==='initSave'){
     const v=parseFloat($('initVal').value);
     if(isNaN(v)){note('Informe um valor válido.');return}
-    if(!db){note('Sem conexão com o banco de dados.');return}
+    if(!db){note('Armazenamento local indisponível. Recarregue a página.');return}
     try{await db.collection('config').doc('saldo').set({value:v});editing=false;initial=v;note('')}catch(err){note('Não foi possível salvar o saldo inicial.')}
     renderInit();render();
   }
@@ -335,13 +335,13 @@ $('list').onclick=async e=>{
     setTimeout(()=>{if(armed===b&&b.isConnected){b.textContent='✕';b.style.color='';b.style.fontWeight='';armed=null}},4000);
     return;
   }
-  try{await db.collection('lancamentos').doc(b.dataset.id).delete();armed=null;note('')}catch(err){note('Não foi possível excluir. Seu acesso precisa ser de Colaborador ou superior.')}
+  try{await db.collection('lancamentos').doc(b.dataset.id).delete();armed=null;note('')}catch(err){note('Não foi possível excluir neste navegador. Verifique o espaço disponível.')}
 };
 
 $('add').onclick=()=>{
   const v=parseFloat($('val').value);
   if(!(v>0)){note('Informe um valor maior que zero.');return}
-  if(!db){note('Sem conexão com o banco de dados. Abra o link pelo claude.ai.');return}
+  if(!db){note('Armazenamento local indisponível. Recarregue a página.');return}
   note('');$('ask').hidden=false;
 };
 $('askCancel').onclick=()=>{$('ask').hidden=true};
@@ -351,7 +351,7 @@ async function save(type){
   $('ask').hidden=true;
   const value=parseFloat($('val').value);
   if(!(value>0)){note('Informe um valor maior que zero.');return}
-  if(!db){note('Sem conexão com o banco de dados. Abra o link pelo claude.ai.');return}
+  if(!db){note('Armazenamento local indisponível. Recarregue a página.');return}
   const who=$('who').value.trim();
   try{localStorage.setItem('cf_who',who)}catch(e){}
   $('add').disabled=true;
@@ -359,45 +359,64 @@ async function save(type){
     await db.collection('lancamentos').add({type,value,desc:$('desc').value.trim(),cat:$('cat').value.trim(),date:$('date').value||iso(new Date()),who,ts:Date.now()});
     $('desc').value='';$('val').value='';
     toast(type==='in'?'✅ Entrada lançada: '+brl(value):'✅ Saída lançada: '+brl(value),type==='in'?'#15803d':'#dc2626');
-  note('')}catch(err){note('Não foi possível salvar. Verifique se você tem permissão de Colaborador.')}
+  note('')}catch(err){note('Não foi possível salvar neste navegador. Verifique o espaço disponível.')}
   $('add').disabled=false;
 };
 
 function createLocalDb(){
-  const request=async(url,options={})=>{
-    const response=await fetch(url,{...options,headers:{'Content-Type':'application/json',...options.headers}});
-    if(!response.ok)throw new Error('Falha na conexão com o banco.');
-    return response.status===204?null:response.json();
+  const prefix='cf_data_v1_';
+  const read=name=>{
+    const records=JSON.parse(localStorage.getItem(prefix+name)||'[]');
+    if(!Array.isArray(records))throw new Error('Os dados salvos neste navegador estão inválidos.');
+    return records;
+  };
+  const write=(name,records)=>{
+    localStorage.setItem(prefix+name,JSON.stringify(records));
+    window.dispatchEvent(new CustomEvent('cf-data-change',{detail:{name}}));
   };
   const watch=(load,callback,onError)=>{
     let previous;
-    const refresh=async()=>{
+    const refresh=()=>{
       try{
-        const value=await load(),serialized=JSON.stringify(value,(key,item)=>typeof item==='function'?item():item);
+        const value=load(),serialized=JSON.stringify(value,(key,item)=>typeof item==='function'?item():item);
         if(serialized!==previous){previous=serialized;callback(value)}
       }catch(error){if(onError)onError(error)}
     };
     refresh();
-    const timer=setInterval(refresh,2000);
-    return()=>clearInterval(timer);
+    window.addEventListener('storage',refresh);
+    window.addEventListener('cf-data-change',refresh);
+    return()=>{
+      window.removeEventListener('storage',refresh);
+      window.removeEventListener('cf-data-change',refresh);
+    };
   };
   return {collection:name=>{
-    const url='/api/'+encodeURIComponent(name);
     return {
-      add:data=>request(url,{method:'POST',body:JSON.stringify(data)}),
+      add:async data=>{
+        const id=crypto.randomUUID();
+        write(name,[...read(name),{...data,id}]);
+        return {id};
+      },
       doc:id=>{
-        const docUrl=url+'/'+encodeURIComponent(id);
         return {
-          set:data=>request(docUrl,{method:'PUT',body:JSON.stringify(data)}),
-          delete:()=>request(docUrl,{method:'DELETE'}),
-          onSnapshot:(callback,onError)=>watch(async()=>{
-            const records=await request(url),record=records.find(item=>item.id===id);
+          set:async data=>{
+            const records=read(name),index=records.findIndex(record=>record.id===id);
+            if(index<0)records.push({...data,id});
+            else records[index]={...data,id};
+            write(name,records);
+            return {id};
+          },
+          delete:async()=>{
+            write(name,read(name).filter(record=>record.id!==id));
+          },
+          onSnapshot:(callback,onError)=>watch(()=>{
+            const record=read(name).find(item=>item.id===id);
             return {exists:!!record,data:()=>record?Object.fromEntries(Object.entries(record).filter(([key])=>key!=='id')):null};
           },callback,onError)
         };
       },
-      onSnapshot:(callback,onError)=>watch(async()=>{
-        const records=await request(url);
+      onSnapshot:(callback,onError)=>watch(()=>{
+        const records=read(name);
         return {docs:records.map(record=>({id:record.id,data:()=>Object.fromEntries(Object.entries(record).filter(([key])=>key!=='id'))}))};
       },callback,onError)
     };
@@ -407,13 +426,19 @@ function createLocalDb(){
 (async()=>{
   db=createLocalDb();
   if(!canWrite){$('formCard').hidden=true;$('billForm').hidden=true;$('cowForm').hidden=true;$('msg').textContent='Você está em modo somente leitura.'}
-  db.collection('config').doc('saldo').onSnapshot(s=>{const d=s.exists?s.data():null;initial=d&&typeof d.value==='number'?d.value:0;if(!editing)renderInit();render()},e=>{});
-  db.collection('config').doc('usuarios').onSnapshot(s=>{users=(s.exists?s.data():null)||{};usersOk=true;$('lgo').disabled=false;$('lmsg').textContent='';$('luser').oninput();tryAuto()},e=>{$('lmsg').textContent='Não conectou ao banco. Abra o endereço encaminhado da porta 3000 e recarregue.'});
-  db.collection('vacas').onSnapshot(s=>{cows=s.docs.map(d=>({id:d.id,...d.data()}));renderCows()},e=>{});
-  db.collection('contas').onSnapshot(s=>{bills=s.docs.map(d=>({id:d.id,...d.data()}));renderBills()},e=>{});
+  const storageError=e=>{
+    const message='Não foi possível acessar os dados neste navegador: '+e.message;
+    note(message);
+    $('lgo').disabled=false;
+    $('lmsg').textContent=message;
+  };
+  db.collection('config').doc('saldo').onSnapshot(s=>{const d=s.exists?s.data():null;initial=d&&typeof d.value==='number'?d.value:0;if(!editing)renderInit();render()},storageError);
+  db.collection('config').doc('usuarios').onSnapshot(s=>{users=(s.exists?s.data():null)||{};usersOk=true;$('lgo').disabled=false;$('lmsg').textContent='';$('luser').oninput();tryAuto()},storageError);
+  db.collection('vacas').onSnapshot(s=>{cows=s.docs.map(d=>({id:d.id,...d.data()}));renderCows()},storageError);
+  db.collection('contas').onSnapshot(s=>{bills=s.docs.map(d=>({id:d.id,...d.data()}));renderBills()},storageError);
   db.collection('lancamentos').onSnapshot(s=>{
     items=s.docs.map(d=>({id:d.id,...d.data()}));render();
-  },e=>{$('msg').textContent='Não foi possível carregar os dados.'});
+  },storageError);
 })();
 render();renderInit();renderBills();renderCows();
 </script>

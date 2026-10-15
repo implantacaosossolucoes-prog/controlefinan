@@ -1,17 +1,19 @@
 # Controle Financeiro
 
-Aplicativo de controle financeiro com banco SQLite local.
+Aplicativo estático de controle financeiro. Os lançamentos, contas, dados das vacas e credenciais ficam salvos no armazenamento local do navegador (`localStorage`).
 
-## Requisitos
+## Executar localmente
 
-- Node.js 24 ou superior
-
-## Executar
+Requer Node.js 18 ou superior.
 
 ```sh
 npm start
 ```
 
-Abra o endereço exibido no terminal. No Codespaces, use o endereço encaminhado da porta 3000 e mantenha a visibilidade da porta como `Private`. O banco é criado automaticamente em `data/controle-financeiro.sqlite` e permanece salvo entre reinicializações.
+Abra o endereço exibido no terminal. Os dados ficam neste navegador e não são enviados para um servidor nem sincronizados com outros dispositivos. Limpar os dados do site ou usar outro navegador/dispositivo resulta em um armazenamento separado.
 
-No primeiro acesso, informe `gabriel` ou `alipio` e defina uma senha com pelo menos 4 caracteres. Os dados e as senhas ficam no ambiente local do projeto.
+## Publicar no Vercel
+
+Importe o repositório no Vercel e mantenha a pasta raiz do projeto como **Root Directory**. Não é necessário configurar build ou variáveis de ambiente: o Vercel servirá `index.html` diretamente.
+
+No primeiro acesso, informe `gabriel` ou `alipio` e defina uma senha com pelo menos 4 caracteres. As credenciais também são locais a cada navegador.
