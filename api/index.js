@@ -90,7 +90,7 @@ function cookie(value, maxAge, request) {
 function verifyPassword(username, password) {
   const envName = username === 'gabriel' ? 'APP_PASSWORD_GABRIEL' : 'APP_PASSWORD_ALIPIO';
   const expected = process.env[envName];
-  if (!expected || Buffer.byteLength(expected) < 12 || typeof password !== 'string') return false;
+  if (!expected || Buffer.byteLength(expected) < 4 || typeof password !== 'string' || password.length < 4) return false;
   const providedBuffer = Buffer.from(password);
   const expectedBuffer = Buffer.from(expected);
   return providedBuffer.length === expectedBuffer.length && timingSafeEqual(providedBuffer, expectedBuffer);
@@ -127,14 +127,15 @@ function validCollection(value) {
 
 export default async function handler(request, response) {
   const pathname = new URL(request.url, 'http://localhost').pathname;
-  const route = pathname.split('/').filter(Boolean).at(-1);
+  const params = new URL(request.url, 'http://localhost').searchParams;
+  const route = params.get('route') || pathname.split('/').filter(Boolean).at(-1);
 
   try {
     if (request.method === 'POST' && route === 'login') {
       sessionSecret();
       getSupabaseConfig();
-      if (Buffer.byteLength(process.env.APP_PASSWORD_GABRIEL || '') < 12
-        || Buffer.byteLength(process.env.APP_PASSWORD_ALIPIO || '') < 12) {
+      if (Buffer.byteLength(process.env.APP_PASSWORD_GABRIEL || '') < 4
+        || Buffer.byteLength(process.env.APP_PASSWORD_ALIPIO || '') < 4) {
         throw new Error('App password environment variables are not configured');
       }
       const { username, password } = await parseBody(request);
@@ -161,7 +162,6 @@ export default async function handler(request, response) {
     const session = getSession(request);
     if (!session) return send(response, 401, { error: 'Sua sessão expirou. Entre novamente.' });
 
-    const params = new URL(request.url, 'http://localhost').searchParams;
     const body = ['POST', 'PUT'].includes(request.method) ? await parseBody(request) : {};
     const collection = params.get('collection') || (request.method === 'POST' ? body.collection : null);
     const id = params.get('id');

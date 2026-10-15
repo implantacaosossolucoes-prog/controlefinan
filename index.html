@@ -160,7 +160,7 @@ input,select{flex:1 1 130px}
   <h2>💰 Controle Financeiro</h2>
   <p>Entre com seu usuário e a senha definida nas variáveis de ambiente do Vercel.</p>
   <input id="luser" placeholder="Usuário" autocapitalize="none" autocomplete="username">
-  <input id="lpass" type="password" placeholder="Senha" minlength="12" autocomplete="current-password">
+  <input id="lpass" type="password" placeholder="Senha" minlength="4" autocomplete="current-password">
   <button id="lgo">Entrar</button>
   <div id="lmsg"></div>
 </div></div>
@@ -297,7 +297,7 @@ $('lgo').onclick=async()=>{
   const n=norm($('luser').value),p=$('lpass').value;
   $('lmsg').textContent='';
   if(!ALLOWED.includes(n)){$('lmsg').textContent='Usuário não autorizado.';return}
-  if(p.length<12){$('lmsg').textContent='A senha precisa ter pelo menos 12 caracteres.';return}
+  if(p.length<4){$('lmsg').textContent='A senha precisa ter pelo menos 4 caracteres.';return}
   $('lgo').disabled=true;
   try{
     const session=await apiRequest('/api/login',{method:'POST',body:JSON.stringify({username:n,password:p})});
@@ -365,6 +365,10 @@ async function save(type){
 
 async function apiRequest(url,options={}){
   const response=await fetch(url,{...options,credentials:'same-origin',headers:{'Content-Type':'application/json',...options.headers}});
+  const contentType=response.headers.get('content-type')||'';
+  if(!contentType.includes('application/json')){
+    throw new Error('A API do Vercel não foi encontrada. Confira api/index.js e vercel.json, faça um novo deploy e teste novamente.');
+  }
   const payload=await response.json();
   if(!response.ok){
     const error=new Error(payload.error||'A solicitação não foi concluída.');

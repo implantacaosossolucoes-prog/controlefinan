@@ -10,17 +10,17 @@ Aplicativo financeiro com dados compartilhados entre dispositivos usando Supabas
 
 ## Configuração do Vercel
 
-Importe o repositório no Vercel e mantenha a pasta raiz do projeto como **Root Directory**. Em **Settings → Environment Variables**, configure as variáveis abaixo para os ambientes que usa (Production, Preview e/ou Development):
+Importe o repositório no Vercel e mantenha a pasta raiz do projeto como **Root Directory**. O arquivo [`vercel.json`](./vercel.json) direciona as rotas `/api/*` à função compartilhada em [`api/index.js`](./api/index.js). Em **Settings → Environment Variables**, configure as variáveis abaixo para os ambientes que usa (Production, Preview e/ou Development):
 
 | Variável | Valor |
 | --- | --- |
 | `SUPABASE_URL` | URL do projeto Supabase |
 | `SUPABASE_SERVICE_ROLE_KEY` | Chave secreta `service_role` do Supabase |
 | `APP_SESSION_SECRET` | Segredo aleatório com pelo menos 32 bytes; gere com `openssl rand -base64 48` |
-| `APP_PASSWORD_GABRIEL` | Senha forte para o usuário `gabriel` (mínimo de 12 caracteres) |
-| `APP_PASSWORD_ALIPIO` | Senha forte para o usuário `alipio` (mínimo de 12 caracteres) |
+| `APP_PASSWORD_GABRIEL` | Senha atual do usuário `gabriel` (mínimo de 4 caracteres) |
+| `APP_PASSWORD_ALIPIO` | Senha atual do usuário `alipio` (mínimo de 4 caracteres) |
 
-Depois de salvar as variáveis, faça um novo deploy. Os dois usuários acessam o mesmo conjunto de dados. As senhas são verificadas no servidor e a sessão usa um cookie `HttpOnly`; não são gravadas no banco nem no navegador.
+Configure nessas variáveis as senhas que os usuários já utilizam. Depois de salvar as variáveis, faça um novo deploy. Os dois usuários acessam o mesmo conjunto de dados. As senhas são verificadas no servidor e a sessão usa um cookie `HttpOnly`; não são gravadas no banco nem no navegador.
 
 ## Dados que já estavam neste navegador
 
