@@ -105,7 +105,7 @@ input,select{flex:1 1 130px}
 <aside class="sidebar" aria-label="Navegação principal">
   <a class="sidebar-brand" href="/" aria-label="AgroBack - início"><img src="/logo.png" alt=""><span>AgroBack</span></a>
   <nav class="side-nav" aria-label="Seções do sistema">
-    <button class="nav-item is-active" type="button" data-view="dashboard" aria-current="page"><span class="nav-icon" aria-hidden="true">▦</span>Visão geral</button>
+      <button class="nav-item is-active" type="button" data-view="dashboard" aria-current="page"><span class="nav-icon" aria-hidden="true">▦</span>DASHBOARD</button>
     <button class="nav-item" type="button" data-view="movements"><span class="nav-icon" aria-hidden="true">↕</span>Lançamentos</button>
     <button class="nav-item" type="button" data-view="finance"><span class="nav-icon" aria-hidden="true">$</span>Financeiro</button>
     <button class="nav-item" type="button" data-view="livestock"><span class="nav-icon" aria-hidden="true">🐄</span>Pecuária</button>
@@ -126,6 +126,10 @@ input,select{flex:1 1 130px}
 <div class="card" id="catCard" hidden>
   <div class="top"><h2>Saídas por categoria</h2></div>
   <div id="bars"></div>
+</div>
+<div class="card">
+  <div class="top"><h2>Pagamentos pendentes</h2><b id="dashboardBillTotal" class="out"></b></div>
+  <div id="dashboardBills"></div>
 </div>
 </section>
 
@@ -213,7 +217,7 @@ input,select{flex:1 1 130px}
 
 <script>
 const $=id=>document.getElementById(id);
-const viewTitles={dashboard:'Visão geral',movements:'Lançamentos',finance:'Financeiro',livestock:'Pecuária'};
+const viewTitles={dashboard:'DASHBOARD',movements:'Lançamentos',finance:'Financeiro',livestock:'Pecuária'};
 function selectView(view){
   if(!viewTitles[view])return;
   document.querySelectorAll('[data-view-panel]').forEach(panel=>{panel.hidden=panel.dataset.viewPanel!==view});
@@ -265,7 +269,13 @@ const dd=s=>{const [y,m,d]=s.split('-');return d+'/'+m+'/'+y};
 function renderBills(){
   const t=iso(new Date());
   const l=[...bills].sort((a,b)=>a.due.localeCompare(b.due));
-  $('billTotal').textContent=l.length?brl(l.reduce((a,b)=>a+b.value,0)):'';
+  const total=l.reduce((a,b)=>a+b.value,0);
+  $('billTotal').textContent=l.length?brl(total):'';
+  $('dashboardBillTotal').textContent=l.length?brl(total):'';
+  $('dashboardBills').innerHTML=l.length?l.map(b=>{
+    const late=b.due<=t;
+    const st=b.due<t?'Vencida em '+dd(b.due):b.due===t?'Vence hoje':'Vence em '+dd(b.due);
+    return `<div class="bill"><div class="d"><div>${esc(b.desc||'(sem descrição)')}</div><small class="${late?'late':''}">${st}</small></div><div class="v out">${brl(b.value)}</div></div>`}).join(''):'<div class="empty">Nenhuma conta pendente.</div>';
   $('bills').innerHTML=l.length?l.map(b=>{
     const late=b.due<=t;
     const st=b.due<t?'Vencida em '+dd(b.due):b.due===t?'Vence hoje':'Vence em '+dd(b.due);
