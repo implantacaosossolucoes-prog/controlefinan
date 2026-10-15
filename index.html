@@ -158,10 +158,10 @@ input,select{flex:1 1 130px}
 <div id="ask" hidden><div class="box"><p>Este lançamento é:</p><div class="s2"><button id="askIn">＋ Entrada</button><button id="askOut">－ Saída</button></div><button id="askCancel" class="x">Cancelar</button></div></div>
 <div id="login"><div class="box">
   <h2>💰 Controle Financeiro</h2>
-  <p>Acesso restrito. No primeiro acesso, a senha que você digitar fica definida para o seu usuário.</p>
+  <p>Entre com seu usuário e a senha definida nas variáveis de ambiente do Vercel.</p>
   <input id="luser" placeholder="Usuário" autocapitalize="none" autocomplete="username">
-  <input id="lpass" type="password" placeholder="Senha" autocomplete="current-password">
-  <button id="lgo" disabled>Entrar</button>
+  <input id="lpass" type="password" placeholder="Senha" minlength="12" autocomplete="current-password">
+  <button id="lgo">Entrar</button>
   <div id="lmsg"></div>
 </div></div>
 <div id="toast"></div>
@@ -214,12 +214,12 @@ function resetB(b){b.textContent=b.classList.contains('pay')?'Pagar':'✕';b.sty
 $('badd').onclick=async()=>{
   const value=parseFloat($('bval').value),due=$('bdue').value;
   if(!(value>0)||!due){note('Informe o valor e o vencimento da conta.');return}
-  if(!db){note('Armazenamento local indisponível. Recarregue a página.');return}
+  if(!db){note('Faça login para acessar os dados compartilhados.');return}
   try{
     await db.collection('contas').add({desc:$('bdesc').value.trim(),value,due,ts:Date.now()});
     $('bdesc').value='';$('bval').value='';$('bdue').value='';note('');
     toast('✅ Conta adicionada: '+brl(value),'#2563eb');
-  }catch(err){note('Não foi possível salvar neste navegador. Verifique o espaço disponível.')}
+  }catch(err){note('Não foi possível salvar a conta: '+err.message)}
 };
 $('bills').onclick=async e=>{
   const b=e.target.closest('.pay,.bx');
@@ -239,7 +239,7 @@ $('bills').onclick=async e=>{
     }
     await db.collection('contas').doc(b.dataset.id).delete();
     barmed=null;note('');
-  }catch(err){note('Não foi possível concluir a operação neste navegador. Verifique o espaço disponível.')}
+  }catch(err){note('Não foi possível concluir a operação: '+err.message)}
 };
 let cows=[],carmed=null;
 const addM=(s,n)=>{const [y,m,d]=s.split('-').map(Number);const last=new Date(y,m+n,0).getDate();return iso(new Date(y,m-1+n,Math.min(d,last)))};
@@ -261,12 +261,12 @@ $('call').onclick=()=>{$('cfrom').value='';$('cto').value='';renderCows()};
 $('cadd').onclick=async()=>{
   const cio=$('cdate').value,nome=$('cname').value.trim();
   if(!nome||!cio){note('Informe o nome da vaca e a data do cio.');return}
-  if(!db){note('Armazenamento local indisponível. Recarregue a página.');return}
+  if(!db){note('Faça login para acessar os dados compartilhados.');return}
   try{
     await db.collection('vacas').add({nome,cio,parto:addM(cio,9),ts:Date.now()});
     $('cname').value='';const pp=addM(cio,9),f=$('cfrom').value,u=$('cto').value;note((f&&pp<f)||(u&&pp>u)?'Vaca registrada, mas fora do filtro atual. Toque em "Mostrar todas" para ver.':'');
     toast('✅ '+nome+': parto previsto em '+dd(addM(cio,9)),'#2563eb');
-  }catch(err){note('Não foi possível salvar neste navegador. Verifique o espaço disponível.')}
+  }catch(err){note('Não foi possível salvar os dados da vaca: '+err.message)}
 };
 $('cows').onclick=async e=>{
   const b=e.target.closest('.cx');
@@ -277,34 +277,34 @@ $('cows').onclick=async e=>{
     setTimeout(()=>{if(carmed===b&&b.isConnected){b.textContent='✕';b.style.color='';b.style.fontWeight='';carmed=null}},4000);
     return;
   }
-  try{await db.collection('vacas').doc(b.dataset.id).delete();carmed=null;note('')}catch(err){note('Não foi possível remover neste navegador. Verifique o espaço disponível.')}
+  try{await db.collection('vacas').doc(b.dataset.id).delete();carmed=null;note('')}catch(err){note('Não foi possível remover a vaca: '+err.message)}
 };
-let users={},usersOk=false,me=null;
+let me=null,started=false;
 const ALLOWED=['gabriel','alipio'];
 const norm=s=>s.trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'');
 const cap=n=>n.charAt(0).toUpperCase()+n.slice(1);
-async function sha(s){const b=await crypto.subtle.digest('SHA-256',new TextEncoder().encode('cf:'+s));return [...new Uint8Array(b)].map(x=>x.toString(16).padStart(2,'0')).join('')}
 function enter(n){
   me=n;$('login').hidden=true;$('who').value=cap(n);$('who').readOnly=true;
   $('me').innerHTML=`Logado como <b>${cap(n)}</b> <button id="lout" class="x">Sair</button>`;
+  void startApp().catch(error=>note(error.message));
 }
-$('me').onclick=e=>{if(e.target.id==='lout'){try{localStorage.removeItem('cf_sess')}catch(x){}location.reload()}};
-function tryAuto(){
-  try{const s=JSON.parse(localStorage.getItem('cf_sess')||'null');if(!me&&s&&ALLOWED.includes(s.n)&&users[s.n]&&users[s.n]===s.h)enter(s.n)}catch(e){}
-}
-$('luser').oninput=()=>{const n=norm($('luser').value);$('lgo').textContent=ALLOWED.includes(n)&&usersOk&&!users[n]?'Criar senha e entrar':'Entrar'};
+$('me').onclick=async e=>{
+  if(e.target.id!=='lout')return;
+  try{await apiRequest('/api/logout',{method:'POST'});location.reload()}
+  catch(error){note('Não foi possível encerrar a sessão. Tente novamente.')}
+};
 $('lgo').onclick=async()=>{
   const n=norm($('luser').value),p=$('lpass').value;
   $('lmsg').textContent='';
   if(!ALLOWED.includes(n)){$('lmsg').textContent='Usuário não autorizado.';return}
-  if(p.length<4){$('lmsg').textContent='A senha precisa ter pelo menos 4 caracteres.';return}
-  const h=await sha(n+':'+p);
-  if(!users[n]){
-    try{await db.collection('config').doc('usuarios').set({...users,[n]:h})}catch(e){$('lmsg').textContent='Não foi possível salvar a senha neste navegador. Verifique o espaço disponível.';return}
-    users[n]=h;
-  }else if(users[n]!==h){$('lmsg').textContent='Senha incorreta.';return}
-  try{localStorage.setItem('cf_sess',JSON.stringify({n,h}))}catch(e){}
-  enter(n);
+  if(p.length<12){$('lmsg').textContent='A senha precisa ter pelo menos 12 caracteres.';return}
+  $('lgo').disabled=true;
+  try{
+    const session=await apiRequest('/api/login',{method:'POST',body:JSON.stringify({username:n,password:p})});
+    $('lpass').value='';
+    enter(session.username);
+  }catch(error){$('lmsg').textContent=error.message}
+  finally{$('lgo').disabled=false}
 };
 $('lpass').onkeydown=e=>{if(e.key==='Enter')$('lgo').click()};
 function renderInit(){
@@ -317,8 +317,8 @@ $('initRow').onclick=async e=>{
   else if(e.target.id==='initSave'){
     const v=parseFloat($('initVal').value);
     if(isNaN(v)){note('Informe um valor válido.');return}
-    if(!db){note('Armazenamento local indisponível. Recarregue a página.');return}
-    try{await db.collection('config').doc('saldo').set({value:v});editing=false;initial=v;note('')}catch(err){note('Não foi possível salvar o saldo inicial.')}
+    if(!db){note('Faça login para acessar os dados compartilhados.');return}
+    try{await db.collection('config').doc('saldo').set({value:v});editing=false;initial=v;note('')}catch(err){note('Não foi possível salvar o saldo inicial: '+err.message)}
     renderInit();render();
   }
 };
@@ -335,13 +335,13 @@ $('list').onclick=async e=>{
     setTimeout(()=>{if(armed===b&&b.isConnected){b.textContent='✕';b.style.color='';b.style.fontWeight='';armed=null}},4000);
     return;
   }
-  try{await db.collection('lancamentos').doc(b.dataset.id).delete();armed=null;note('')}catch(err){note('Não foi possível excluir neste navegador. Verifique o espaço disponível.')}
+  try{await db.collection('lancamentos').doc(b.dataset.id).delete();armed=null;note('')}catch(err){note('Não foi possível excluir o lançamento: '+err.message)}
 };
 
 $('add').onclick=()=>{
   const v=parseFloat($('val').value);
   if(!(v>0)){note('Informe um valor maior que zero.');return}
-  if(!db){note('Armazenamento local indisponível. Recarregue a página.');return}
+  if(!db){note('Faça login para acessar os dados compartilhados.');return}
   note('');$('ask').hidden=false;
 };
 $('askCancel').onclick=()=>{$('ask').hidden=true};
@@ -351,7 +351,7 @@ async function save(type){
   $('ask').hidden=true;
   const value=parseFloat($('val').value);
   if(!(value>0)){note('Informe um valor maior que zero.');return}
-  if(!db){note('Armazenamento local indisponível. Recarregue a página.');return}
+  if(!db){note('Faça login para acessar os dados compartilhados.');return}
   const who=$('who').value.trim();
   try{localStorage.setItem('cf_who',who)}catch(e){}
   $('add').disabled=true;
@@ -359,87 +359,124 @@ async function save(type){
     await db.collection('lancamentos').add({type,value,desc:$('desc').value.trim(),cat:$('cat').value.trim(),date:$('date').value||iso(new Date()),who,ts:Date.now()});
     $('desc').value='';$('val').value='';
     toast(type==='in'?'✅ Entrada lançada: '+brl(value):'✅ Saída lançada: '+brl(value),type==='in'?'#15803d':'#dc2626');
-  note('')}catch(err){note('Não foi possível salvar neste navegador. Verifique o espaço disponível.')}
+  note('')}catch(err){note('Não foi possível salvar o lançamento: '+err.message)}
   $('add').disabled=false;
 };
 
-function createLocalDb(){
-  const prefix='cf_data_v1_';
-  const read=name=>{
-    const records=JSON.parse(localStorage.getItem(prefix+name)||'[]');
-    if(!Array.isArray(records))throw new Error('Os dados salvos neste navegador estão inválidos.');
-    return records;
+async function apiRequest(url,options={}){
+  const response=await fetch(url,{...options,credentials:'same-origin',headers:{'Content-Type':'application/json',...options.headers}});
+  const payload=await response.json();
+  if(!response.ok){
+    const error=new Error(payload.error||'A solicitação não foi concluída.');
+    error.status=response.status;
+    throw error;
+  }
+  return payload;
+}
+function createSharedDb(){
+  const subscriptions=new Set();
+  let loading=false,timer=null;
+  const refresh=async()=>{
+    if(loading||!subscriptions.size)return;
+    loading=true;
+    try{
+      const records=await apiRequest('/api/records');
+      subscriptions.forEach(subscription=>{
+        const matching=records.filter(record=>record.collection===subscription.collection);
+        const record=subscription.id?matching.find(item=>item.id===subscription.id):null;
+        const value=subscription.id
+          ?{exists:!!record,data:()=>record?Object.fromEntries(Object.entries(record).filter(([key])=>key!=='id'&&key!=='collection')):null}
+          :{docs:matching.map(item=>({id:item.id,data:()=>Object.fromEntries(Object.entries(item).filter(([key])=>key!=='id'&&key!=='collection'))}))};
+        const serialized=JSON.stringify(value,(key,item)=>typeof item==='function'?item():item);
+        if(serialized!==subscription.previous){subscription.previous=serialized;subscription.callback(value)}
+      });
+    }catch(error){
+      subscriptions.forEach(subscription=>subscription.onError?.(error));
+    }finally{loading=false}
   };
-  const write=(name,records)=>{
-    localStorage.setItem(prefix+name,JSON.stringify(records));
-    window.dispatchEvent(new CustomEvent('cf-data-change',{detail:{name}}));
-  };
-  const watch=(load,callback,onError)=>{
-    let previous;
-    const refresh=()=>{
-      try{
-        const value=load(),serialized=JSON.stringify(value,(key,item)=>typeof item==='function'?item():item);
-        if(serialized!==previous){previous=serialized;callback(value)}
-      }catch(error){if(onError)onError(error)}
-    };
-    refresh();
-    window.addEventListener('storage',refresh);
-    window.addEventListener('cf-data-change',refresh);
+  const watch=(collection,id,callback,onError)=>{
+    const subscription={collection,id,callback,onError,previous:null};
+    subscriptions.add(subscription);
+    void refresh();
+    if(!timer)timer=setInterval(refresh,5000);
     return()=>{
-      window.removeEventListener('storage',refresh);
-      window.removeEventListener('cf-data-change',refresh);
+      subscriptions.delete(subscription);
+      if(!subscriptions.size){clearInterval(timer);timer=null}
     };
+  };
+  const mutate=async(url,options)=>{
+    const result=await apiRequest(url,options);
+    void refresh();
+    return result;
   };
   return {collection:name=>{
     return {
-      add:async data=>{
-        const id=crypto.randomUUID();
-        write(name,[...read(name),{...data,id}]);
-        return {id};
-      },
+      add:data=>mutate('/api/records',{method:'POST',body:JSON.stringify({collection:name,data})}),
       doc:id=>{
+        const docQuery=new URLSearchParams({collection:name,id});
         return {
-          set:async data=>{
-            const records=read(name),index=records.findIndex(record=>record.id===id);
-            if(index<0)records.push({...data,id});
-            else records[index]={...data,id};
-            write(name,records);
-            return {id};
-          },
-          delete:async()=>{
-            write(name,read(name).filter(record=>record.id!==id));
-          },
-          onSnapshot:(callback,onError)=>watch(()=>{
-            const record=read(name).find(item=>item.id===id);
-            return {exists:!!record,data:()=>record?Object.fromEntries(Object.entries(record).filter(([key])=>key!=='id')):null};
-          },callback,onError)
+          set:data=>mutate('/api/records?'+docQuery,{method:'PUT',body:JSON.stringify({data})}),
+          delete:()=>mutate('/api/records?'+docQuery,{method:'DELETE'}),
+          onSnapshot:(callback,onError)=>watch(name,id,callback,onError)
         };
       },
-      onSnapshot:(callback,onError)=>watch(()=>{
-        const records=read(name);
-        return {docs:records.map(record=>({id:record.id,data:()=>Object.fromEntries(Object.entries(record).filter(([key])=>key!=='id'))}))};
-      },callback,onError)
+      onSnapshot:(callback,onError)=>watch(name,null,callback,onError)
     };
   }};
 }
 
-(async()=>{
-  db=createLocalDb();
+async function migrateLocalData(){
+  const marker='cf_shared_migrated_v1';
+  if(localStorage.getItem(marker))return;
+  for(const name of ['lancamentos','contas','vacas','config']){
+    if(name==='config'){
+      const config=JSON.parse(localStorage.getItem('cf_data_v1_config')||'[]');
+      for(const record of config){
+        if(record.id==='usuarios'||!record.id)continue;
+        const {id,...data}=record;
+        await apiRequest('/api/records?'+new URLSearchParams({collection:name,id}),{method:'PUT',body:JSON.stringify({data})});
+      }
+    }else{
+      const records=JSON.parse(localStorage.getItem('cf_data_v1_'+name)||'[]');
+      for(const record of records){
+        if(!record.id)continue;
+        const {id,...data}=record;
+        await apiRequest('/api/records?'+new URLSearchParams({collection:name,id}),{method:'PUT',body:JSON.stringify({data})});
+      }
+    }
+  }
+  localStorage.setItem(marker,'1');
+}
+
+async function startApp(){
+  if(started)return;
+  started=true;
+  try{await migrateLocalData()}
+  catch(error){note('Os dados locais não foram migrados: '+error.message)}
+  db=createSharedDb();
   if(!canWrite){$('formCard').hidden=true;$('billForm').hidden=true;$('cowForm').hidden=true;$('msg').textContent='Você está em modo somente leitura.'}
   const storageError=e=>{
-    const message='Não foi possível acessar os dados neste navegador: '+e.message;
+    if(e.status===401){location.reload();return}
+    const message='Não foi possível sincronizar os dados: '+e.message;
     note(message);
-    $('lgo').disabled=false;
-    $('lmsg').textContent=message;
   };
   db.collection('config').doc('saldo').onSnapshot(s=>{const d=s.exists?s.data():null;initial=d&&typeof d.value==='number'?d.value:0;if(!editing)renderInit();render()},storageError);
-  db.collection('config').doc('usuarios').onSnapshot(s=>{users=(s.exists?s.data():null)||{};usersOk=true;$('lgo').disabled=false;$('lmsg').textContent='';$('luser').oninput();tryAuto()},storageError);
   db.collection('vacas').onSnapshot(s=>{cows=s.docs.map(d=>({id:d.id,...d.data()}));renderCows()},storageError);
   db.collection('contas').onSnapshot(s=>{bills=s.docs.map(d=>({id:d.id,...d.data()}));renderBills()},storageError);
   db.collection('lancamentos').onSnapshot(s=>{
     items=s.docs.map(d=>({id:d.id,...d.data()}));render();
   },storageError);
-})();
+}
+async function restoreSession(){
+  try{
+    const session=await apiRequest('/api/session');
+    enter(session.username);
+  }catch(error){
+    $('lgo').disabled=false;
+    if(error.status!==401)$('lmsg').textContent=error.message;
+  }
+}
+restoreSession();
 render();renderInit();renderBills();renderCows();
 </script>
 </body>
