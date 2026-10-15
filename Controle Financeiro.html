@@ -180,6 +180,7 @@ input,select{flex:1 1 130px}
   </div>
   <div class="row">
     <button id="cweek" class="x" style="border:1px solid var(--bd)">Próximos 7 dias</button>
+    <button id="cmonth" class="x" style="border:1px solid var(--bd)">Próximos 30 dias</button>
     <button id="call" class="x" style="border:1px solid var(--bd)">Mostrar todas</button>
   </div>
   <div id="cows" style="margin-top:8px"></div>
@@ -324,10 +325,12 @@ function renderCows(){
     return `<div class="bill"><div class="d"><div>🐄 ${esc(c.nome||'(sem nome)')}</div><small>Cio: ${dd(c.cio)} · Parto previsto: <b>${dd(c.parto)}</b></small><br><small class="${n<=30?'late':''}">${st}</small></div>${canWrite?`<button class="cx x" data-id="${c.id}" title="Remover">✕</button>`:''}</div>`}).join(''):'<div class="empty">'+(cows.length?'Nenhuma vaca com parto previsto neste período.':'Nenhuma vaca registrada.')+'</div>';
 }
 $('cdate').value=iso(new Date());
-const wk=()=>{const d=new Date();$('cfrom').value=iso(d);d.setDate(d.getDate()+7);$('cto').value=iso(d)};
+const setCowRange=days=>{const d=new Date();$('cfrom').value=iso(d);d.setDate(d.getDate()+days);$('cto').value=iso(d)};
+const wk=()=>setCowRange(7);
 wk();
 $('cfrom').onchange=$('cto').onchange=renderCows;
 $('cweek').onclick=()=>{wk();renderCows()};
+$('cmonth').onclick=()=>{setCowRange(30);renderCows()};
 $('call').onclick=()=>{$('cfrom').value='';$('cto').value='';renderCows()};
 $('cadd').onclick=async()=>{
   const cio=$('cdate').value,nome=$('cname').value.trim();
