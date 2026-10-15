@@ -13,6 +13,11 @@ const server = createServer((request, response) => {
     void apiHandler(request, response);
     return;
   }
+  if (request.method === 'GET' && pathname === '/logo.png') {
+    response.writeHead(200, { 'Content-Type': 'image/png', 'Cache-Control': 'public, max-age=86400' });
+    createReadStream(`${root}logo.png`).pipe(response);
+    return;
+  }
   if (request.method !== 'GET' || !['/', '/index.html'].includes(pathname)) {
     response.writeHead(404);
     response.end('Not found');
