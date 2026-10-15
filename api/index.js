@@ -97,10 +97,32 @@ function verifyPassword(username, password) {
 }
 
 function getSupabaseConfig() {
-  const url = process.env.SUPABASE_URL?.replace(/\/+$/, '');
+  const configuredUrl = process.env.SUPABASE_URL;
   const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
-  if (!url || !key) throw new Error('Supabase server environment variables are not configured');
-  return { url, key };
+  if (!configuredUrl || !key) throw new Error('Supabase server environment variables are not configured');
+  let projectUrl;
+  try {
+    projectUrl = new URL(configuredUrl);
+  } catch {
+    throw Object.assign(new Error('Invalid Supabase project URL'), {
+      publicMessage: 'SUPABASE_URL precisa ser a URL do projeto Supabase (https://<projeto>.supabase.co), sem caminhos como /dashboard ou /project.'
+    });
+  }
+  if (!['https:', 'http:'].includes(projectUrl.protocol) || projectUrl.search || projectUrl.hash) {
+    throw Object.assign(new Error('Invalid Supabase project URL'), {
+      publicMessage: 'SUPABASE_URL precisa ser a URL base do projeto Supabase, sem parâmetros ou fragmentos.'
+    });
+  }
+  const path = projectUrl.pathname.replace(/\/+$/, '');
+  if (path && path !== '/rest/v1') {
+    throw Object.assign(new Error('Invalid Supabase project URL path'), {
+      publicMessage: 'SUPABASE_URL deve ser a URL base do projeto Supabase, sem caminhos como /dashboard ou /project.'
+    });
+  }
+  projectUrl.pathname = '';
+  projectUrl.search = '';
+  projectUrl.hash = '';
+  return { url: projectUrl.origin, key };
 }
 
 async function supabaseRequest(path, options = {}) {
@@ -121,6 +143,11 @@ async function supabaseRequest(path, options = {}) {
     const detail = await response.json().catch(() => ({}));
     const code = typeof detail.code === 'string' ? detail.code : '';
     console.error('Supabase request failed', { status: response.status, code });
+    if (code === 'PGRST125') {
+      throw Object.assign(new Error('Supabase rejected an invalid API path'), {
+        publicMessage: 'O Supabase recebeu um caminho inválido. No Vercel, defina SUPABASE_URL como a URL base exibida em Project Settings → API, sem /rest/v1 no final.'
+      });
+    }
     if (['PGRST205', '42P01'].includes(code)) {
       throw Object.assign(
         new Error('Supabase table is missing'),
@@ -235,10 +262,10 @@ export default async function handler(request, response) {
     console.error('API request failed:', error);
     if (error.statusCode) return send(response, error.statusCode, { error: error.statusCode === 413 ? 'A solicitação excedeu o limite permitido.' : 'Solicitação inválida.' });
     if (error.publicMessage) return send(response, 500, { error: error.publicMessage });
-    const message = error.message.includes('environment variables') || error.message.includes('APP_SESSION_SECRET')
+    const message = error.publicMessage || (error.message.includes('environment variables') || error.message.includes('APP_SESSION_SECRET')
       || error.message.includes('APP_PASSWORD')
       ? 'O backend ainda não está configurado. Confira as variáveis de ambiente do Vercel.'
-      : 'Não foi possível concluir a operação. Tente novamente.';
+      : 'Não foi possível concluir a operação. Tente novamente.');
     return send(response, 500, { error: message });
   }
 }

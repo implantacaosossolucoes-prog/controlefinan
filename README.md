@@ -14,7 +14,7 @@ Importe o repositório no Vercel e mantenha a pasta raiz do projeto como **Root 
 
 | Variável | Valor |
 | --- | --- |
-| `SUPABASE_URL` | URL do projeto Supabase |
+| `SUPABASE_URL` | URL base do projeto, por exemplo `https://<project-ref>.supabase.co`; não acrescente `/rest/v1`, `/dashboard` ou `/project` |
 | `SUPABASE_SERVICE_ROLE_KEY` | Chave secreta `service_role` do Supabase |
 | `APP_SESSION_SECRET` | Segredo aleatório com pelo menos 32 bytes; gere com `openssl rand -base64 48` |
 | `APP_PASSWORD_GABRIEL` | Senha atual do usuário `gabriel` (mínimo de 4 caracteres) |
