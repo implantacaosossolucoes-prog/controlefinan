@@ -8,5 +8,8 @@
   },
   "scripts": {
     "start": "node server.mjs"
+  },
+  "dependencies": {
+    "dotenv": "^18.0.8"
   }
 }

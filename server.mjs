@@ -1,3 +1,4 @@
+import 'dotenv/config';
 import { createServer } from 'node:http';
 import { createReadStream } from 'node:fs';
 import { fileURLToPath } from 'node:url';

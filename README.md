@@ -30,10 +30,12 @@ Dados do arquivo SQLite local antigo não são migrados automaticamente.
 
 ## Executar localmente
 
-Requer Node.js 18 ou superior. Configure as mesmas variáveis de ambiente do backend e execute:
+Requer Node.js 18 ou superior. Configure o backend online primeiro (projeto Supabase, tabela e credenciais). Para testar localmente, copie `.env.example` para `.env` e preencha os mesmos valores usados no Vercel:
 
 ```sh
+cp .env.example .env
+# Edite .env com a URL e a chave service_role do seu projeto Supabase
 npm start
 ```
 
-Abra o endereço exibido no terminal. O polling atualiza os dados dos outros dispositivos em até aproximadamente 5 segundos.
+Use as senhas atuais dos usuários, com o mínimo de 4 caracteres. O `.env` é carregado ao iniciar o servidor e ignorado pelo Git. Abra o endereço exibido no terminal. O app local e o publicado no Vercel usam o mesmo banco Supabase, e o polling atualiza os dados dos outros dispositivos em até aproximadamente 5 segundos.
