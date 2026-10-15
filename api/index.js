@@ -105,18 +105,38 @@ function getSupabaseConfig() {
 
 async function supabaseRequest(path, options = {}) {
   const { url, key } = getSupabaseConfig();
+  const headers = {
+    apikey: key,
+    'Content-Type': 'application/json',
+    ...options.headers
+  };
+  if (!key.startsWith('sb_secret_')) {
+    headers.Authorization = `Bearer ${key}`;
+  }
   const response = await fetch(`${url}/rest/v1/records${path}`, {
     ...options,
-    headers: {
-      apikey: key,
-      Authorization: `Bearer ${key}`,
-      'Content-Type': 'application/json',
-      ...options.headers
-    }
+    headers
   });
   if (!response.ok) {
-    console.error('Supabase request failed with status', response.status);
-    throw new Error('The shared database request failed');
+    const detail = await response.json().catch(() => ({}));
+    const code = typeof detail.code === 'string' ? detail.code : '';
+    console.error('Supabase request failed', { status: response.status, code });
+    if (['PGRST205', '42P01'].includes(code)) {
+      throw Object.assign(
+        new Error('Supabase table is missing'),
+        { publicMessage: 'A tabela records não existe no Supabase. Execute o arquivo supabase/schema.sql no SQL Editor.' }
+      );
+    }
+    if (response.status === 401 || response.status === 403) {
+      throw Object.assign(
+        new Error('Supabase rejected the server key'),
+        { publicMessage: 'O Supabase recusou a chave. Confira se SUPABASE_URL e SUPABASE_SERVICE_ROLE_KEY pertencem ao mesmo projeto e se a chave é Secret (sb_secret_) ou service_role.' }
+      );
+    }
+    throw Object.assign(
+      new Error(`Supabase request failed with HTTP ${response.status} ${code}`),
+      { publicMessage: `O Supabase recusou a operação (HTTP ${response.status}${code ? `, ${code}` : ''}). Confira se a tabela records e o schema foram configurados.` }
+    );
   }
   return response.status === 204 ? null : response.json();
 }
@@ -214,6 +234,7 @@ export default async function handler(request, response) {
   } catch (error) {
     console.error('API request failed:', error);
     if (error.statusCode) return send(response, error.statusCode, { error: error.statusCode === 413 ? 'A solicitação excedeu o limite permitido.' : 'Solicitação inválida.' });
+    if (error.publicMessage) return send(response, 500, { error: error.publicMessage });
     const message = error.message.includes('environment variables') || error.message.includes('APP_SESSION_SECRET')
       || error.message.includes('APP_PASSWORD')
       ? 'O backend ainda não está configurado. Confira as variáveis de ambiente do Vercel.'
