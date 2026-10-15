@@ -165,7 +165,8 @@ async function supabaseRequest(path, options = {}) {
       { publicMessage: `O Supabase recusou a operação (HTTP ${response.status}${code ? `, ${code}` : ''}). Confira se a tabela records e o schema foram configurados.` }
     );
   }
-  return response.status === 204 ? null : response.json();
+  const text = await response.text();
+  return text ? JSON.parse(text) : null;
 }
 
 function validCollection(value) {
