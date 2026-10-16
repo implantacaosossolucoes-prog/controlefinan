@@ -31,7 +31,7 @@ begin
   return new;
 end;
 $$;
-
+a
 drop trigger if exists records_updated_at on public.records;
 create trigger records_updated_at
 before update on public.records
