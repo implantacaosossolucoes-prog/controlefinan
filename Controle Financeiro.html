@@ -239,7 +239,7 @@ input,select{flex:1 1 130px}
 <div id="login"><div class="box">
   <img class="brand-logo" src="/logo.png" alt="Logo AgroBack">
   <h2>Controle Financeiro</h2>
-  <p>Entre com seu usuário e a senha definida nas variáveis de ambiente do Vercel.</p>
+  <p>Entre com seu usuário e a senha configurada para este ambiente.</p>
   <input id="luser" placeholder="Usuário" autocapitalize="none" autocomplete="username">
   <input id="lpass" type="password" placeholder="Senha" minlength="4" autocomplete="current-password">
   <button id="lgo">Entrar</button>
@@ -518,7 +518,7 @@ async function apiRequest(url,options={}){
   const response=await fetch(url,{...options,credentials:'same-origin',headers:{'Content-Type':'application/json',...options.headers}});
   const contentType=response.headers.get('content-type')||'';
   if(!contentType.includes('application/json')){
-    throw new Error('A API do Vercel não foi encontrada. Confira api/index.js e vercel.json, faça um novo deploy e teste novamente.');
+    throw new Error('A API não está disponível neste endereço. Para testar localmente, inicie o servidor com "npm run dev:demo" e abra a URL exibida no terminal; a prévia estática na porta 5500 não executa as rotas da API.');
   }
   const payload=await response.json();
   if(!response.ok){

@@ -39,3 +39,13 @@ npm start
 ```
 
 Use as senhas atuais dos usuários, com o mínimo de 4 caracteres. O `.env` é carregado ao iniciar o servidor e ignorado pelo Git. Abra o endereço exibido no terminal. O app local e o publicado no Vercel usam o mesmo banco Supabase, e o polling atualiza os dados dos outros dispositivos em até aproximadamente 5 segundos.
+
+### Testar sem conectar ao Supabase
+
+Para testar a interface e os fluxos sem configurar o Supabase, execute:
+
+```sh
+npm run dev:demo
+```
+
+Abra a URL exibida no terminal (normalmente `http://localhost:3000` ou a URL encaminhada pelo Codespaces), em vez da prévia estática da porta 5500. Entre com `gabriel` ou `alipio` e a senha `teste123`. A senha pode ser alterada definindo `LOCAL_DEMO_PASSWORD`. Os dados desse modo ficam somente na memória e são apagados quando o servidor é encerrado; esse modo é apenas para testes e não deve ser usado com dados reais.

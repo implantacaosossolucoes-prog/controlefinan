@@ -7,7 +7,8 @@
     "node": ">=18"
   },
   "scripts": {
-    "start": "node server.mjs"
+    "start": "node server.mjs",
+    "dev:demo": "node server.mjs --demo"
   },
   "dependencies": {
     "dotenv": "^18.0.8"
