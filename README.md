@@ -5,7 +5,7 @@ Aplicativo financeiro com dados compartilhados entre dispositivos usando Supabas
 ## Configuração do Supabase
 
 1. Crie um projeto no Supabase.
-2. No **SQL Editor**, execute [`supabase/schema.sql`](./supabase/schema.sql) para criar a tabela compartilhada e bloquear o acesso direto de usuários anônimos/autenticados. Execute o arquivo novamente quando houver atualizações no schema.
+2. No **SQL Editor**, execute [`supabase/schema.sql`](./supabase/schema.sql) para criar a tabela compartilhada, o bucket privado de fotos e bloquear o acesso direto de usuários anônimos/autenticados. Execute o arquivo novamente quando houver atualizações no schema.
 3. Em **Project Settings → API**, copie a URL do projeto e a chave `service_role`. Essa chave é secreta: configure-a somente no Vercel e nunca a coloque no HTML, em variáveis `VITE_*` ou no Git.
 
 ## Configuração do Vercel
@@ -50,4 +50,6 @@ npm run dev:demo
 
 Abra a URL exibida no terminal (normalmente `http://localhost:3000` ou a URL encaminhada pelo Codespaces), em vez da prévia estática da porta 5500. Entre com `gabriel` ou `alipio` e a senha `teste123`. A senha pode ser alterada definindo `LOCAL_DEMO_PASSWORD`. Os dados desse modo ficam somente na memória e são apagados quando o servidor é encerrado; esse modo é apenas para testes e não deve ser usado com dados reais.
 
-Na aplicação, os lançamentos, contas e animais podem ser pesquisados e editados. O painel mostra contas vencidas e próximos cuidados pecuários. **Exportar dados em CSV** gera uma planilha dos registros; **Baixar backup JSON** cria um arquivo completo que pode ser restaurado pelo botão correspondente. A restauração atualiza os registros com o mesmo identificador e não apaga outros registros existentes.
+Na aplicação, os lançamentos, contas e animais podem ser pesquisados e editados. O painel mostra contas vencidas e próximos cuidados pecuários. **Exportar dados em CSV** gera uma planilha dos registros; **Baixar backup JSON** cria um arquivo que pode ser restaurado pelo botão correspondente. A restauração atualiza os registros com o mesmo identificador e não apaga outros registros existentes.
+
+No cadastro de bezerros, use os campos de foto para tirar ou selecionar uma imagem do animal e outra do brinco. As fotos são reduzidas no navegador e armazenadas em um bucket privado do Supabase; somente usuários autenticados conseguem consultá-las. A remoção do bezerro também exclui suas fotos. Os arquivos de backup JSON não contêm as imagens; elas permanecem no armazenamento privado do Supabase.

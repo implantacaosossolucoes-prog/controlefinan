@@ -3,6 +3,8 @@ import { createHmac, timingSafeEqual, randomUUID } from 'node:crypto';
 const collections = new Set(['config', 'lancamentos', 'contas', 'vacas', 'bezerros']);
 const cookieName = 'cf_session';
 const sessionDuration = 7 * 24 * 60 * 60;
+const photoBucket = 'animal-photos';
+const calfPhotoKinds = new Set(['animal', 'tag']);
 
 function send(response, status, payload, headers = {}) {
   response.statusCode = status;
@@ -12,7 +14,7 @@ function send(response, status, payload, headers = {}) {
   response.end(JSON.stringify(payload));
 }
 
-async function parseBody(request) {
+async function parseBody(request, maxBytes = 1_000_000) {
   if ('body' in request) {
     if (request.body && typeof request.body === 'object') return request.body;
     if (typeof request.body !== 'string') return {};
@@ -25,7 +27,7 @@ async function parseBody(request) {
   let body = '';
   for await (const chunk of request) {
     body += chunk;
-    if (body.length > 1_000_000) throw Object.assign(new Error('Request body too large'), { statusCode: 413 });
+    if (Buffer.byteLength(body) > maxBytes) throw Object.assign(new Error('Request body too large'), { statusCode: 413 });
   }
   try {
     return JSON.parse(body || '{}');
@@ -169,6 +171,64 @@ async function supabaseRequest(path, options = {}) {
   return text ? JSON.parse(text) : null;
 }
 
+async function supabaseStorageRequest(path, options = {}) {
+  const { url, key } = getSupabaseConfig();
+  const headers = { apikey: key, ...options.headers };
+  if (!key.startsWith('sb_secret_')) headers.Authorization = `Bearer ${key}`;
+  const response = await fetch(`${url}/storage/v1${path}`, { ...options, headers });
+  if (!response.ok) {
+    const detail = await response.json().catch(() => ({}));
+    const errorCode = typeof detail.error === 'string' ? detail.error : '';
+    console.error('Supabase Storage request failed', { status: response.status, error: errorCode });
+    if (response.status === 404) {
+      throw Object.assign(new Error('Supabase Storage bucket is missing'), {
+        publicMessage: 'O bucket animal-photos não existe. Execute novamente supabase/schema.sql no SQL Editor do Supabase.'
+      });
+    }
+    if (response.status === 401 || response.status === 403) {
+      throw Object.assign(new Error('Supabase Storage rejected the server key'), {
+        publicMessage: 'O Supabase Storage recusou a chave do servidor. Confira SUPABASE_URL e SUPABASE_SERVICE_ROLE_KEY.'
+      });
+    }
+    throw Object.assign(new Error(`Supabase Storage request failed with HTTP ${response.status}`), {
+      publicMessage: `Não foi possível acessar o armazenamento de fotos (HTTP ${response.status}). Confira o bucket animal-photos e as credenciais do Supabase.`
+    });
+  }
+  return response;
+}
+
+function validCalfId(value) {
+  return typeof value === 'string' && /^[\da-f]{8}-[\da-f]{4}-[1-8][\da-f]{3}-[89ab][\da-f]{3}-[\da-f]{12}$/i.test(value);
+}
+
+function calfPhotoKey(id, kind) {
+  return `bezerros/${id}/${kind}.jpg`;
+}
+
+async function getCalfData(id) {
+  const query = new URLSearchParams({ select: 'data', collection: 'eq.bezerros', id: `eq.${id}` });
+  const rows = await supabaseRequest(`?${query}`);
+  return rows[0]?.data || null;
+}
+
+function sendPhoto(response, image) {
+  response.statusCode = 200;
+  response.setHeader('Content-Type', 'image/jpeg');
+  response.setHeader('Cache-Control', 'private, no-store');
+  response.setHeader('X-Content-Type-Options', 'nosniff');
+  response.end(Buffer.from(image));
+}
+
+async function removeCalfPhotos(id) {
+  const prefixes = [...calfPhotoKinds].map(kind => calfPhotoKey(id, kind));
+  const path = `/object/${photoBucket}`;
+  await supabaseStorageRequest(path, {
+    method: 'DELETE',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ prefixes })
+  });
+}
+
 function validCollection(value) {
   return typeof value === 'string' && collections.has(value);
 }
@@ -209,6 +269,54 @@ export default async function handler(request, response) {
 
     const session = getSession(request);
     if (!session) return send(response, 401, { error: 'Sua sessão expirou. Entre novamente.' });
+
+    if (route === 'calf-photos') {
+      const calfId = params.get('calfId');
+      const kind = params.get('kind');
+      if (!validCalfId(calfId) || !calfPhotoKinds.has(kind)) {
+        return send(response, 400, { error: 'Identificação da foto inválida.' });
+      }
+      const data = await getCalfData(calfId);
+      if (!data) return send(response, 404, { error: 'Bezerro não encontrado.' });
+      const field = kind === 'animal' ? 'photoAnimal' : 'photoTag';
+      const key = calfPhotoKey(calfId, kind);
+
+      if (request.method === 'POST') {
+        const body = await parseBody(request, 1_000_000);
+        if (typeof body.image !== 'string' || !/^[A-Za-z0-9+/]+={0,2}$/.test(body.image)) {
+          return send(response, 400, { error: 'A imagem enviada é inválida.' });
+        }
+        const image = Buffer.from(body.image, 'base64');
+        if (!image.length || image.length > 700_000 || image.toString('base64') !== body.image) {
+          return send(response, 413, { error: 'A foto excede o limite de tamanho. Tente capturar uma imagem menor.' });
+        }
+        const signature = image.subarray(0, 3).toString('hex');
+        if (signature !== 'ffd8ff') return send(response, 400, { error: 'Envie uma foto válida em formato JPEG.' });
+        const encodedKey = key.split('/').map(encodeURIComponent).join('/');
+        await supabaseStorageRequest(`/object/${photoBucket}/${encodedKey}`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'image/jpeg', 'x-upsert': 'true' },
+          body: image
+        });
+        const updatedData = { ...data, [field]: true };
+        await supabaseRequest('?on_conflict=collection%2Cid', {
+          method: 'POST',
+          headers: { Prefer: 'resolution=merge-duplicates,return=minimal' },
+          body: JSON.stringify({ collection: 'bezerros', id: calfId, data: updatedData })
+        });
+        return send(response, 200, { saved: true, field });
+      }
+
+      if (request.method === 'GET') {
+        if (data[field] !== true) return send(response, 404, { error: 'Foto não cadastrada.' });
+        const encodedKey = key.split('/').map(encodeURIComponent).join('/');
+        const photo = await supabaseStorageRequest(`/object/${photoBucket}/${encodedKey}`);
+        const image = Buffer.from(await photo.arrayBuffer());
+        return sendPhoto(response, image);
+      }
+
+      return send(response, 405, { error: 'Método não permitido.' }, { Allow: 'GET, POST' });
+    }
 
     const body = ['POST', 'PUT'].includes(request.method) ? await parseBody(request) : {};
     const collection = params.get('collection') || (request.method === 'POST' ? body.collection : null);
@@ -253,6 +361,7 @@ export default async function handler(request, response) {
     if (request.method === 'DELETE' && route === 'records') {
       if (!validCollection(collection)) return send(response, 400, { error: 'Coleção inválida.' });
       if (!id) return send(response, 400, { error: 'Registro inválido.' });
+      if (collection === 'bezerros' && validCalfId(id)) await removeCalfPhotos(id);
       const query = new URLSearchParams({ collection: `eq.${collection}`, id: `eq.${id}` });
       await supabaseRequest(`?${query}`, { method: 'DELETE', headers: { Prefer: 'return=minimal' } });
       return send(response, 200, { ok: true });

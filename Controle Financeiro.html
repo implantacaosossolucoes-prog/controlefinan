@@ -61,6 +61,13 @@ input,select{flex:1 1 130px}
 .toolbar{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin:10px 0}
 .toolbar input,.toolbar select{flex:1 1 160px}
 .secondary-button{cursor:pointer;border:1px solid var(--bd);background:var(--card)}
+.photo-fields{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:8px}
+.photo-field{flex:1 1 180px;color:var(--mut);font-size:13px}
+.photo-field input{display:block;width:100%;margin-top:4px}
+.calf-photos{display:flex;flex-wrap:wrap;gap:8px;margin-top:8px}
+.calf-photo{width:120px;height:100px;object-fit:cover;border:1px solid var(--bd);border-radius:8px;background:var(--bg)}
+.calf-photo-actions{display:flex;gap:4px;flex-wrap:wrap;margin-left:auto}
+.photo-action{font-size:12px;padding:6px 8px}
 .alert-row{padding:8px 0;border-top:1px solid var(--bd)}
 .alert-row:first-child{border-top:0}
 .alert-row small{color:var(--mut)}
@@ -184,7 +191,7 @@ input,select{flex:1 1 130px}
     <button type="button" id="importBackupButton" class="secondary-button">Restaurar backup JSON</button>
     <input id="backupFile" type="file" accept="application/json,.json">
   </div>
-  <small style="color:var(--mut)">O backup contém lançamentos, contas, vacas, bezerros e saldo inicial.</small>
+  <small style="color:var(--mut)">O backup contém lançamentos, contas, vacas, bezerros e saldo inicial. Fotos ficam no armazenamento privado e não são incluídas no arquivo JSON.</small>
 </div>
 <div class="card" id="catCard" hidden>
   <div class="top"><h2>Saídas por categoria</h2></div>
@@ -267,6 +274,15 @@ input,select{flex:1 1 130px}
       <input id="calfBirth" type="date" title="Data de nascimento">
       <input id="calfTag" placeholder="Número do brinco">
     </div>
+    <div class="photo-fields">
+      <label class="photo-field">Foto do bezerro
+        <input id="calfAnimalPhoto" type="file" accept="image/*" capture="environment">
+      </label>
+      <label class="photo-field">Foto do brinco
+        <input id="calfTagPhoto" type="file" accept="image/*" capture="environment">
+      </label>
+    </div>
+    <small style="display:block;color:var(--mut);margin-bottom:8px">As fotos são reduzidas e armazenadas com acesso protegido pelo login.</small>
     <button id="calfAdd">Salvar bezerro</button>
   </div>
   <div class="toolbar">
@@ -305,6 +321,7 @@ input,select{flex:1 1 130px}
 </div>
 <div id="ask" hidden><div class="box"><p>Este lançamento é:</p><div class="s2"><button id="askIn">＋ Entrada</button><button id="askOut">－ Saída</button></div><button id="askCancel" class="x">Cancelar</button></div></div>
 <div id="editor" hidden><form class="box" id="editorForm"><h2 id="editorTitle">Editar registro</h2><div id="editorFields"></div><div class="editor-actions"><button type="button" id="editorCancel" class="secondary-button">Cancelar</button><button type="submit" id="editorSave">Salvar alterações</button></div></form></div>
+<input id="photoReplaceInput" type="file" accept="image/*" capture="environment" hidden>
 <div id="login"><div class="box">
   <img class="brand-logo" src="/logo.png" alt="Logo AgroBack">
   <h2>Controle Financeiro</h2>
@@ -530,24 +547,84 @@ function renderCalves(){
   const query=$('calfSearch').value.trim().toLocaleLowerCase();
   const ordered=[...calves].filter(c=>!query||(c.descricao||'').toLocaleLowerCase().includes(query)||(c.brinco||'').toLocaleLowerCase().includes(query)).sort((a,b)=>b.nascimento.localeCompare(a.nascimento));
   $('calfCount').textContent=calves.length?calves.length+(calves.length===1?' bezerro':' bezerros'):'';
-  $('calves').innerHTML=ordered.length?ordered.map(c=>`<div class="bill"><div class="d"><div>🐮 ${esc(c.descricao||'(sem descrição)')}</div><small>Nascimento: ${dd(c.nascimento)} · Brinco: ${esc(c.brinco||'(não informado)')}</small></div>${canWrite?`<button class="record-edit x" data-id="${c.id}" title="Editar bezerro" aria-label="Editar bezerro">✎</button><button class="calf-remove x" data-id="${c.id}" title="Remover">✕</button>`:''}</div>`).join(''):'<div class="empty">'+(calves.length?'Nenhum bezerro corresponde à busca.':'Nenhum bezerro registrado.')+'</div>';
+  $('calves').innerHTML=ordered.length?ordered.map(c=>`<div class="bill"><div class="d"><div>🐮 ${esc(c.descricao||'(sem descrição)')}</div><small>Nascimento: ${dd(c.nascimento)} · Brinco: ${esc(c.brinco||'(não informado)')}</small>${c.photoAnimal||c.photoTag?`<div class="calf-photos">${c.photoAnimal?`<img class="calf-photo" src="/api/calf-photos?calfId=${encodeURIComponent(c.id)}&kind=animal" alt="Foto de ${esc(c.descricao||'bezerro')}">`:''}${c.photoTag?`<img class="calf-photo" src="/api/calf-photos?calfId=${encodeURIComponent(c.id)}&kind=tag" alt="Foto do brinco ${esc(c.brinco||'')}">`:''}</div>`:''}</div>${canWrite?`<div class="calf-photo-actions"><button class="photo-action secondary-button" data-photo-kind="animal" data-id="${c.id}">${c.photoAnimal?'Trocar':'Adicionar'} foto do bezerro</button><button class="photo-action secondary-button" data-photo-kind="tag" data-id="${c.id}">${c.photoTag?'Trocar':'Adicionar'} foto do brinco</button><button class="record-edit x" data-id="${c.id}" title="Editar bezerro" aria-label="Editar bezerro">✎</button><button class="calf-remove x" data-id="${c.id}" title="Remover">✕</button></div>`:''}</div>`).join(''):'<div class="empty">'+(calves.length?'Nenhum bezerro corresponde à busca.':'Nenhum bezerro registrado.')+'</div>';
   renderAlerts();
 }
 $('cowSearch').oninput=renderCows;
 $('calfSearch').oninput=renderCalves;
 $('calfBirth').value=iso(new Date());
+let photoReplaceTarget=null;
+async function prepareCalfPhoto(file){
+  if(!file||!file.type.startsWith('image/'))throw new Error('Selecione um arquivo de imagem.');
+  let bitmap;
+  try{bitmap=await createImageBitmap(file)}catch{throw new Error('Não foi possível abrir a imagem. Tente tirar outra foto.')}
+  try{
+    const canvas=document.createElement('canvas'),scale=Math.min(1,1280/Math.max(bitmap.width,bitmap.height));
+    canvas.width=Math.round(bitmap.width*scale);canvas.height=Math.round(bitmap.height*scale);
+    const context=canvas.getContext('2d');
+    if(!context)throw new Error('Este navegador não permite preparar a foto.');
+    context.drawImage(bitmap,0,0,canvas.width,canvas.height);
+    let blob;
+    for(const quality of [.82,.72,.62,.52]){
+      blob=await new Promise(resolve=>canvas.toBlob(resolve,'image/jpeg',quality));
+      if(!blob)throw new Error('Não foi possível processar a foto.');
+      if(blob.size<=650_000)break;
+    }
+    if(blob.size>650_000)throw new Error('A foto continua muito grande após a redução. Tente enquadrar mais de perto e tirar outra foto.');
+    return await new Promise((resolve,reject)=>{
+      const reader=new FileReader();
+      reader.onload=()=>resolve(String(reader.result).split(',')[1]);
+      reader.onerror=()=>reject(new Error('Não foi possível ler a foto selecionada.'));
+      reader.readAsDataURL(blob);
+    });
+  }finally{bitmap.close()}
+}
+async function uploadCalfPhoto(calfId,kind,file){
+  const image=await prepareCalfPhoto(file);
+  return apiRequest(`/api/calf-photos?${new URLSearchParams({calfId,kind})}`,{
+    method:'POST',body:JSON.stringify({image})
+  });
+}
 $('calfAdd').onclick=async()=>{
   const descricao=$('calfDescription').value.trim(),nascimento=$('calfBirth').value,brinco=$('calfTag').value.trim();
   const validation=validateRecord('bezerros',{descricao,nascimento,brinco});
   if(validation){note(validation);return}
   if(!db){note('Faça login para acessar os dados compartilhados.');return}
   try{
-    await db.collection('bezerros').add({descricao,nascimento,brinco,ts:Date.now()});
+    const calfRecord={descricao,nascimento,brinco,ts:Date.now()};
+    const {id}=await db.collection('bezerros').add(calfRecord);
+    calfRecord.id=id;
+    const animalPhoto=$('calfAnimalPhoto').files[0],tagPhoto=$('calfTagPhoto').files[0];
     $('calfDescription').value='';$('calfBirth').value=iso(new Date());$('calfTag').value='';note('');
-    toast('✅ Bezerro registrado: '+descricao,'#2563eb');
+    $('calfAnimalPhoto').value='';$('calfTagPhoto').value='';
+    const failures=[];
+    for(const [kind,file,label] of [['animal',animalPhoto,'foto do bezerro'],['tag',tagPhoto,'foto do brinco']]){
+      if(!file)continue;
+      try{
+        note(`Salvando ${label}...`);
+        const result=await uploadCalfPhoto(id,kind,file);
+        calfRecord[result.field]=true;
+      }
+      catch(error){failures.push(`${label}: ${error.message}`)}
+    }
+    calves=[...calves.filter(c=>c.id!==id),calfRecord];
+    renderCalves();
+    if(failures.length){
+      note(`Bezerro cadastrado, mas houve falha ao salvar ${failures.join('; ')}. Use os botões de foto no cadastro para tentar novamente.`);
+      toast('⚠️ Bezerro salvo; confira as fotos.','#b45309');
+    }else{
+      note('');
+      toast('✅ Bezerro registrado: '+descricao,'#2563eb');
+    }
   }catch(err){note('Não foi possível salvar os dados do bezerro: '+err.message)}
 };
 $('calves').onclick=async e=>{
+  const photoButton=e.target.closest('[data-photo-kind]');
+  if(photoButton){
+    photoReplaceTarget={calfId:photoButton.dataset.id,kind:photoButton.dataset.photoKind};
+    $('photoReplaceInput').click();
+    return;
+  }
   const edit=e.target.closest('.record-edit');
   if(edit){const calf=calves.find(x=>x.id===edit.dataset.id);if(calf)openEditor('bezerros',calf);return}
   const b=e.target.closest('.calf-remove');
@@ -559,6 +636,20 @@ $('calves').onclick=async e=>{
     return;
   }
   try{await db.collection('bezerros').doc(b.dataset.id).delete();calved=null;note('');toast('✅ Bezerro removido.','#15803d')}catch(err){note('Não foi possível remover o bezerro: '+err.message)}
+};
+$('photoReplaceInput').onchange=async e=>{
+  const file=e.target.files[0],target=photoReplaceTarget;
+  e.target.value='';photoReplaceTarget=null;
+  if(!file||!target)return;
+  try{
+    note('Preparando e enviando a foto...');
+    const result=await uploadCalfPhoto(target.calfId,target.kind,file);
+    const calf=calves.find(item=>item.id===target.calfId);
+    if(calf)calf[result.field]=true;
+    note('');
+    toast(target.kind==='animal'?'✅ Foto do bezerro salva.':'✅ Foto do brinco salva.','#15803d');
+    renderCalves();
+  }catch(error){note('Não foi possível salvar a foto: '+error.message)}
 };
 function renderAlerts(){
   const todayIso=iso(new Date()),nextWeek=iso(new Date(Date.now()+7*86400000)),nextMonth=iso(new Date(Date.now()+30*86400000));
@@ -588,7 +679,7 @@ const editorFields={
 const editorTitles={lancamentos:'Editar lançamento',contas:'Editar conta',vacas:'Editar vaca',bezerros:'Editar bezerro'};
 function openEditor(collection,record){
   if(!canWrite)return;
-  recordEditor={collection,id:record.id};
+  recordEditor={collection,id:record.id,data:{...record}};
   $('editorTitle').textContent=editorTitles[collection];
   $('editorFields').innerHTML=editorFields[collection].map(([name,label,inputType])=>{
     const value=record[name]??'';
@@ -607,10 +698,10 @@ $('editorForm').onsubmit=async e=>{
   const values=Object.fromEntries(new FormData(e.currentTarget));
   const {collection,id}=recordEditor;
   let data;
-  if(collection==='lancamentos')data={...values,value:parseFloat(values.value),ts:Date.now()};
-  else if(collection==='contas')data={...values,value:parseFloat(values.value),ts:Date.now()};
-  else if(collection==='vacas')data={nome:values.nome.trim(),cio:values.cio,parto:addM(values.cio,9),ts:Date.now()};
-  else data={descricao:values.descricao.trim(),nascimento:values.nascimento,brinco:values.brinco.trim(),ts:Date.now()};
+  if(collection==='lancamentos')data={...recordEditor.data,...values,value:parseFloat(values.value),ts:Date.now()};
+  else if(collection==='contas')data={...recordEditor.data,...values,value:parseFloat(values.value),ts:Date.now()};
+  else if(collection==='vacas')data={...recordEditor.data,nome:values.nome.trim(),cio:values.cio,parto:addM(values.cio,9),ts:Date.now()};
+  else data={...recordEditor.data,descricao:values.descricao.trim(),nascimento:values.nascimento,brinco:values.brinco.trim(),ts:Date.now()};
   const validation=validateRecord(collection,data,id);
   if(validation){note(validation);return}
   $('editorSave').disabled=true;
@@ -649,7 +740,7 @@ $('exportCsv').onclick=()=>{
 $('exportBackup').onclick=()=>{
   if(!db){note('Faça login para acessar os dados compartilhados.');return}
   if(!recordsLoaded){note('Aguarde a sincronização dos dados antes de baixar o backup.');return}
-  const collections=Object.fromEntries(backupCollections.map(name=>[name,(name==='lancamentos'?items:name==='contas'?bills:name==='vacas'?cows:calves).map(({id,...data})=>({id,...data}))]));
+  const collections=Object.fromEntries(backupCollections.map(name=>[name,(name==='lancamentos'?items:name==='contas'?bills:name==='vacas'?cows:calves).map(({id,photoAnimal,photoTag,...data})=>({id,...data}))]));
   collections.config=[{id:'saldo',value:initial}];
   downloadFile(`agroback-backup-${iso(new Date())}.json`,JSON.stringify({version:1,exportedAt:new Date().toISOString(),collections},null,2),'application/json');
   toast('✅ Backup JSON baixado.','#15803d');

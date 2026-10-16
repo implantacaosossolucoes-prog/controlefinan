@@ -5,6 +5,7 @@ const users = new Set(['gabriel', 'alipio']);
 const cookieName = 'cf_demo_session';
 const sessions = new Map();
 const records = new Map([...collections].map(name => [name, new Map()]));
+const calfPhotos = new Map();
 const password = process.env.LOCAL_DEMO_PASSWORD || 'teste123';
 
 function send(response, status, payload, headers = {}) {
@@ -39,6 +40,10 @@ function sessionFor(request) {
 function cookie(value, maxAge, secure) {
   const secureFlag = secure ? '; Secure' : '';
   return `${cookieName}=${value}; Path=/; HttpOnly; SameSite=Strict; Max-Age=${maxAge}${secureFlag}`;
+}
+
+function calfPhotoKey(id, kind) {
+  return `${id}:${kind}`;
 }
 
 export default async function devApiHandler(request, response) {
@@ -77,6 +82,44 @@ export default async function devApiHandler(request, response) {
 
     if (!sessionFor(request)) return send(response, 401, { error: 'Sua sessão expirou. Entre novamente.' });
 
+    if (route === 'calf-photos') {
+      const calfId = url.searchParams.get('calfId');
+      const kind = url.searchParams.get('kind');
+      if (!calfId || !['animal', 'tag'].includes(kind)) return send(response, 400, { error: 'Identificação da foto inválida.' });
+      const calf = records.get('bezerros').get(calfId);
+      if (!calf) return send(response, 404, { error: 'Bezerro não encontrado.' });
+      const key = calfPhotoKey(calfId, kind);
+      const field = kind === 'animal' ? 'photoAnimal' : 'photoTag';
+
+      if (request.method === 'POST') {
+        const body = await parseBody(request);
+        if (typeof body.image !== 'string' || !/^[A-Za-z0-9+/]+={0,2}$/.test(body.image)) {
+          return send(response, 400, { error: 'A imagem enviada é inválida.' });
+        }
+        const image = Buffer.from(body.image, 'base64');
+        if (!image.length || image.length > 700_000 || image.toString('base64') !== body.image) {
+          return send(response, 413, { error: 'A foto excede o limite de tamanho.' });
+        }
+        if (image.subarray(0, 3).toString('hex') !== 'ffd8ff') return send(response, 400, { error: 'Envie uma foto válida em formato JPEG.' });
+        calfPhotos.set(key, image);
+        records.get('bezerros').set(calfId, { ...calf, [field]: true });
+        return send(response, 200, { saved: true });
+      }
+
+      if (request.method === 'GET') {
+        const image = calfPhotos.get(key);
+        if (!calf[field] || !image) return send(response, 404, { error: 'Foto não cadastrada.' });
+        response.statusCode = 200;
+        response.setHeader('Content-Type', 'image/jpeg');
+        response.setHeader('Cache-Control', 'private, no-store');
+        response.setHeader('X-Content-Type-Options', 'nosniff');
+        response.end(image);
+        return;
+      }
+
+      return send(response, 405, { error: 'Método não permitido.' }, { Allow: 'GET, POST' });
+    }
+
     const collection = url.searchParams.get('collection');
     const id = url.searchParams.get('id');
     if (collection && !collections.has(collection)) return send(response, 400, { error: 'Coleção inválida.' });
@@ -110,6 +153,10 @@ export default async function devApiHandler(request, response) {
 
     if (request.method === 'DELETE' && route === 'records') {
       if (!collection || !id || !collections.has(collection)) return send(response, 400, { error: 'Registro inválido.' });
+      if (collection === 'bezerros') {
+        calfPhotos.delete(calfPhotoKey(id, 'animal'));
+        calfPhotos.delete(calfPhotoKey(id, 'tag'));
+      }
       records.get(collection).delete(id);
       return send(response, 200, { ok: true });
     }
