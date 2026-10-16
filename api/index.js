@@ -1,6 +1,6 @@
 import { createHmac, timingSafeEqual, randomUUID } from 'node:crypto';
 
-const collections = new Set(['config', 'lancamentos', 'contas', 'vacas']);
+const collections = new Set(['config', 'lancamentos', 'contas', 'vacas', 'bezerros']);
 const cookieName = 'cf_session';
 const sessionDuration = 7 * 24 * 60 * 60;
 

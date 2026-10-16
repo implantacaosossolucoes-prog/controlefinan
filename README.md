@@ -5,7 +5,7 @@ Aplicativo financeiro com dados compartilhados entre dispositivos usando Supabas
 ## Configuração do Supabase
 
 1. Crie um projeto no Supabase.
-2. No **SQL Editor**, execute [`supabase/schema.sql`](./supabase/schema.sql) para criar a tabela compartilhada e bloquear o acesso direto de usuários anônimos/autenticados.
+2. No **SQL Editor**, execute [`supabase/schema.sql`](./supabase/schema.sql) para criar a tabela compartilhada e bloquear o acesso direto de usuários anônimos/autenticados. Execute o arquivo novamente quando houver atualizações no schema.
 3. Em **Project Settings → API**, copie a URL do projeto e a chave `service_role`. Essa chave é secreta: configure-a somente no Vercel e nunca a coloque no HTML, em variáveis `VITE_*` ou no Git.
 
 ## Configuração do Vercel
@@ -24,7 +24,7 @@ Configure nessas variáveis as senhas que os usuários já utilizam. Depois de s
 
 ## Dados que já estavam neste navegador
 
-Ao entrar após a configuração, o app tenta migrar para o Supabase os lançamentos, contas, vacas e saldo que ainda estejam no armazenamento local antigo daquele navegador. Faça login em cada dispositivo usado no teste para migrar os dados locais de cada um. As antigas senhas salvas somente no navegador não são migradas: use as senhas configuradas no Vercel.
+Ao entrar após a configuração, o app tenta migrar para o Supabase os lançamentos, contas, vacas, bezerros e saldo que ainda estejam no armazenamento local antigo daquele navegador. Faça login em cada dispositivo usado no teste para migrar os dados locais de cada um. As antigas senhas salvas somente no navegador não são migradas: use as senhas configuradas no Vercel.
 
 Dados do arquivo SQLite local antigo não são migrados automaticamente.
 

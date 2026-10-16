@@ -74,7 +74,7 @@ input,select{flex:1 1 130px}
 #ask .s2{display:flex;gap:8px;margin-bottom:8px}
 #ask .s2 button{flex:1;padding:14px;font-weight:700;cursor:pointer;color:#fff;border:0}
 #askIn{background:#15803d}#askOut{background:#dc2626}
-#badd,#cadd{width:100%;background:var(--ac);color:#fff;border-color:var(--ac);font-weight:600;cursor:pointer}
+#badd,#cadd,#calfAdd{width:100%;background:var(--ac);color:#fff;border-color:var(--ac);font-weight:600;cursor:pointer}
 .bill{display:flex;align-items:center;gap:8px;padding:10px 0;border-top:1px solid var(--bd)}
 .bill .d{flex:1;min-width:0}
 .bill .d div{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
@@ -185,6 +185,18 @@ input,select{flex:1 1 130px}
     <button id="call" class="x" style="border:1px solid var(--bd)">Mostrar todas</button>
   </div>
   <div id="cows" style="margin-top:8px"></div>
+</div>
+<div class="card" id="calfCard">
+  <div class="top"><h2>🐮 Bezerros</h2><b id="calfCount"></b></div>
+  <div id="calfForm">
+    <div class="row">
+      <input id="calfDescription" placeholder="Descrição do bezerro">
+      <input id="calfBirth" type="date" title="Data de nascimento">
+      <input id="calfTag" placeholder="Número do brinco">
+    </div>
+    <button id="calfAdd">Salvar bezerro</button>
+  </div>
+  <div id="calves" style="margin-top:8px"></div>
 </div>
 </section>
 
@@ -314,7 +326,7 @@ $('bills').onclick=async e=>{
     barmed=null;note('');
   }catch(err){note('Não foi possível concluir a operação: '+err.message)}
 };
-let cows=[],carmed=null;
+let cows=[],carmed=null,calves=[],calved=null;
 const addM=(s,n)=>{const [y,m,d]=s.split('-').map(Number);const last=new Date(y,m+n,0).getDate();return iso(new Date(y,m-1+n,Math.min(d,last)))};
 const addD=(s,n)=>{const [y,m,d]=s.split('-').map(Number);return iso(new Date(y,m-1,d+n))};
 function renderCows(){
@@ -359,6 +371,33 @@ $('cows').onclick=async e=>{
     return;
   }
   try{await db.collection('vacas').doc(b.dataset.id).delete();carmed=null;note('')}catch(err){note('Não foi possível remover a vaca: '+err.message)}
+};
+function renderCalves(){
+  const ordered=[...calves].sort((a,b)=>b.nascimento.localeCompare(a.nascimento));
+  $('calfCount').textContent=calves.length?calves.length+(calves.length===1?' bezerro':' bezerros'):'';
+  $('calves').innerHTML=ordered.length?ordered.map(c=>`<div class="bill"><div class="d"><div>🐮 ${esc(c.descricao||'(sem descrição)')}</div><small>Nascimento: ${dd(c.nascimento)} · Brinco: ${esc(c.brinco||'(não informado)')}</small></div>${canWrite?`<button class="calf-remove x" data-id="${c.id}" title="Remover">✕</button>`:''}</div>`).join(''):'<div class="empty">Nenhum bezerro registrado.</div>';
+}
+$('calfBirth').value=iso(new Date());
+$('calfAdd').onclick=async()=>{
+  const descricao=$('calfDescription').value.trim(),nascimento=$('calfBirth').value,brinco=$('calfTag').value.trim();
+  if(!descricao||!nascimento||!brinco){note('Informe a descrição, a data de nascimento e o número do brinco do bezerro.');return}
+  if(!db){note('Faça login para acessar os dados compartilhados.');return}
+  try{
+    await db.collection('bezerros').add({descricao,nascimento,brinco,ts:Date.now()});
+    $('calfDescription').value='';$('calfBirth').value=iso(new Date());$('calfTag').value='';note('');
+    toast('✅ Bezerro registrado: '+descricao,'#2563eb');
+  }catch(err){note('Não foi possível salvar os dados do bezerro: '+err.message)}
+};
+$('calves').onclick=async e=>{
+  const b=e.target.closest('.calf-remove');
+  if(!b||!db)return;
+  if(calved!==b){
+    if(calved&&calved.isConnected){calved.textContent='✕';calved.style.color='';calved.style.fontWeight=''}
+    calved=b;b.textContent='Confirmar?';b.style.color='var(--out)';b.style.fontWeight='700';
+    setTimeout(()=>{if(calved===b&&b.isConnected){b.textContent='✕';b.style.color='';b.style.fontWeight='';calved=null}},4000);
+    return;
+  }
+  try{await db.collection('bezerros').doc(b.dataset.id).delete();calved=null;note('')}catch(err){note('Não foi possível remover o bezerro: '+err.message)}
 };
 let me=null,started=false;
 const ALLOWED=['gabriel','alipio'];
@@ -513,7 +552,7 @@ function createSharedDb(){
 async function migrateLocalData(){
   const marker='cf_shared_migrated_v1';
   if(localStorage.getItem(marker))return;
-  for(const name of ['lancamentos','contas','vacas','config']){
+  for(const name of ['lancamentos','contas','vacas','bezerros','config']){
     if(name==='config'){
       const config=JSON.parse(localStorage.getItem('cf_data_v1_config')||'[]');
       for(const record of config){
@@ -539,7 +578,7 @@ async function startApp(){
   try{await migrateLocalData()}
   catch(error){note('Os dados locais não foram migrados: '+error.message)}
   db=createSharedDb();
-  if(!canWrite){$('formCard').hidden=true;$('billForm').hidden=true;$('cowForm').hidden=true;$('msg').textContent='Você está em modo somente leitura.'}
+  if(!canWrite){$('formCard').hidden=true;$('billForm').hidden=true;$('cowForm').hidden=true;$('calfForm').hidden=true;$('msg').textContent='Você está em modo somente leitura.'}
   const storageError=e=>{
     if(e.status===401){location.reload();return}
     const message='Não foi possível sincronizar os dados: '+e.message;
@@ -547,6 +586,7 @@ async function startApp(){
   };
   db.collection('config').doc('saldo').onSnapshot(s=>{const d=s.exists?s.data():null;initial=d&&typeof d.value==='number'?d.value:0;if(!editing)renderInit();render()},storageError);
   db.collection('vacas').onSnapshot(s=>{cows=s.docs.map(d=>({id:d.id,...d.data()}));renderCows()},storageError);
+  db.collection('bezerros').onSnapshot(s=>{calves=s.docs.map(d=>({id:d.id,...d.data()}));renderCalves()},storageError);
   db.collection('contas').onSnapshot(s=>{bills=s.docs.map(d=>({id:d.id,...d.data()}));renderBills()},storageError);
   db.collection('lancamentos').onSnapshot(s=>{
     items=s.docs.map(d=>({id:d.id,...d.data()}));render();
@@ -562,7 +602,7 @@ async function restoreSession(){
   }
 }
 restoreSession();
-render();renderInit();renderBills();renderCows();
+render();renderInit();renderBills();renderCows();renderCalves();
 </script>
 </body>
 </html>

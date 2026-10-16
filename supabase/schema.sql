@@ -1,10 +1,15 @@
 create table if not exists public.records (
-  collection text not null check (collection in ('config', 'lancamentos', 'contas', 'vacas')),
+  collection text not null check (collection in ('config', 'lancamentos', 'contas', 'vacas', 'bezerros')),
   id text not null,
   data jsonb not null,
   updated_at timestamptz not null default now(),
   primary key (collection, id)
 );
+
+alter table public.records drop constraint if exists records_collection_check;
+alter table public.records
+  add constraint records_collection_check
+  check (collection in ('config', 'lancamentos', 'contas', 'vacas', 'bezerros'));
 
 alter table public.records enable row level security;
 revoke all on table public.records from anon, authenticated;
