@@ -31,9 +31,11 @@ main{max-width:1100px;margin:0 auto;padding:0}
 h1{font-size:22px;margin:0}
 .page-header{display:flex;justify-content:space-between;align-items:center;gap:16px;margin:4px 0 14px}
 .page-header .eyebrow{margin:0 0 2px;color:var(--mut);font-size:12px}
+.sync-status{color:var(--mut);font-size:12px;white-space:nowrap}
 .workspace-view[hidden]{display:none}
 .card{background:var(--card);border:1px solid var(--bd);border-radius:14px;padding:14px;margin-bottom:14px}
 .sum{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+.sum.extra{grid-template-columns:repeat(4,1fr);margin-top:10px}
 .sum .card{margin:0;padding:12px}
 .sum small{color:var(--mut);display:block}
 .sum b{font-size:18px;display:block;margin-top:2px;word-break:break-word}
@@ -53,8 +55,18 @@ input,select{flex:1 1 130px}
 .item .d{flex:1;min-width:0}
 .item .d div{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .item .d small{color:var(--mut)}
+.item-actions{display:flex;align-items:center;gap:2px}
 .item .v{font-weight:700;white-space:nowrap}
 .x{border:0;background:none;color:var(--mut);cursor:pointer;padding:8px 10px;white-space:nowrap}
+.toolbar{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin:10px 0}
+.toolbar input,.toolbar select{flex:1 1 160px}
+.secondary-button{cursor:pointer;border:1px solid var(--bd);background:var(--card)}
+.alert-row{padding:8px 0;border-top:1px solid var(--bd)}
+.alert-row:first-child{border-top:0}
+.alert-row small{color:var(--mut)}
+.alert-row.urgent{color:var(--out);font-weight:600}
+.record-edit{color:var(--ac)}
+#backupFile{display:none}
 #initRow{display:flex;align-items:center;gap:8px;margin:8px 2px 0;color:var(--mut);font-size:13px}
 #initRow b{color:var(--tx)}
 #initRow input{padding:7px 10px}
@@ -80,6 +92,15 @@ input,select{flex:1 1 130px}
 #ask .s2{display:flex;gap:8px;margin-bottom:8px}
 #ask .s2 button{flex:1;padding:14px;font-weight:700;cursor:pointer;color:#fff;border:0}
 #askIn{background:#15803d}#askOut{background:#dc2626}
+#editor{position:fixed;inset:0;background:rgba(0,0,0,.5);display:flex;align-items:center;justify-content:center;z-index:35;padding:16px}
+#editor[hidden]{display:none}
+#editor .box{background:var(--card);border:1px solid var(--bd);border-radius:14px;padding:18px;width:100%;max-width:480px;max-height:90vh;overflow:auto}
+#editor h2{font-size:18px;margin:0 0 12px}
+.edit-field{display:block;color:var(--mut);font-size:13px;margin-bottom:10px}
+.edit-field input,.edit-field select{display:block;width:100%;margin-top:4px}
+.editor-actions{display:flex;justify-content:flex-end;gap:8px;margin-top:14px}
+.editor-actions button{cursor:pointer}
+#editorSave{background:var(--ac);color:#fff;border-color:var(--ac);font-weight:600}
 #badd,#cadd,#calfAdd{width:100%;background:var(--ac);color:#fff;border-color:var(--ac);font-weight:600;cursor:pointer}
 .bill{display:flex;align-items:center;gap:8px;padding:10px 0;border-top:1px solid var(--bd)}
 .bill .d{flex:1;min-width:0}
@@ -104,7 +125,14 @@ input,select{flex:1 1 130px}
   .nav-submenu{position:static;flex-direction:row;min-width:0;padding:0;background:transparent;border:0;border-radius:0;box-shadow:none}
   .nav-subitem{width:100%}
   .app-main{padding:12px}
-  .page-header{align-items:flex-start}
+  .page-header{align-items:center}
+  .sum{grid-template-columns:repeat(3,minmax(0,1fr))}
+  .sum.extra{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .sum b{font-size:16px}
+  .sync-status{white-space:normal;text-align:right}
+  .item{align-items:flex-start}
+  .item-actions{flex-direction:column}
+  .toolbar input,.toolbar select{flex-basis:100%}
   h1{font-size:20px}
 }
 </style>
@@ -128,7 +156,7 @@ input,select{flex:1 1 130px}
 </aside>
 <div class="app-main">
 <main>
-<header class="page-header"><div><p class="eyebrow">AgroBack</p><h1 id="viewTitle">Visão geral</h1></div><div id="me"></div></header>
+<header class="page-header"><div><p class="eyebrow">AgroBack</p><h1 id="viewTitle">Visão geral</h1></div><div style="display:flex;align-items:center;gap:12px"><small id="syncStatus" class="sync-status" role="status">Aguardando conexão</small><div id="me"></div></div></header>
 <div id="msg"></div>
 <section class="workspace-view" id="view-dashboard" data-view-panel="dashboard">
 <div class="sum">
@@ -136,8 +164,28 @@ input,select{flex:1 1 130px}
   <div class="card"><small>Saídas</small><b class="out" id="sOut">R$ 0,00</b></div>
   <div class="card"><small>Saldo atual</small><b id="sBal">R$ 0,00</b></div>
 </div>
+<div class="sum extra">
+  <div class="card"><small>Contas pendentes</small><b id="dashboardOpenBills">0</b></div>
+  <div class="card"><small>Vacas cadastradas</small><b id="dashboardCowCount">0</b></div>
+  <div class="card"><small>Bezerros cadastrados</small><b id="dashboardCalfCount">0</b></div>
+  <div class="card"><small>Partos nos próximos 30 dias</small><b id="dashboardBirthCount">0</b></div>
+</div>
 <div id="initRow"></div>
 
+<div class="card">
+  <div class="top"><h2>Alertas e próximos cuidados</h2></div>
+  <div id="dashboardAlerts"><div class="empty">Carregando alertas...</div></div>
+</div>
+<div class="card">
+  <div class="top"><h2>Exportação e backup</h2></div>
+  <div class="toolbar">
+    <button type="button" id="exportCsv" class="secondary-button">Exportar dados em CSV</button>
+    <button type="button" id="exportBackup" class="secondary-button">Baixar backup JSON</button>
+    <button type="button" id="importBackupButton" class="secondary-button">Restaurar backup JSON</button>
+    <input id="backupFile" type="file" accept="application/json,.json">
+  </div>
+  <small style="color:var(--mut)">O backup contém lançamentos, contas, vacas, bezerros e saldo inicial.</small>
+</div>
 <div class="card" id="catCard" hidden>
   <div class="top"><h2>Saídas por categoria</h2></div>
   <div id="bars"></div>
@@ -170,7 +218,11 @@ input,select{flex:1 1 130px}
 <div class="card">
   <div class="top">
     <h2>Histórico de lançamentos</h2>
-    <input id="month" type="month" style="flex:0 0 auto">
+  </div>
+  <div class="toolbar">
+    <input id="movementSearch" type="search" placeholder="Buscar por descrição, categoria ou responsável">
+    <input id="month" type="month" title="Filtrar por mês">
+    <button type="button" id="clearMovementFilters" class="secondary-button">Limpar filtros</button>
   </div>
   <div id="list"></div>
 </div>
@@ -193,6 +245,9 @@ input,select{flex:1 1 130px}
     <small style="color:var(--mut)">até</small>
     <input id="cto" type="date" style="flex:1 1 120px">
   </div>
+  <div class="toolbar">
+    <input id="cowSearch" type="search" placeholder="Buscar vaca por nome ou brinco">
+  </div>
   <div class="row">
     <button id="cweek" class="x" style="border:1px solid var(--bd)">Próximos 7 dias</button>
     <button id="cmonth" class="x" style="border:1px solid var(--bd)">Próximos 30 dias</button>
@@ -214,6 +269,9 @@ input,select{flex:1 1 130px}
     </div>
     <button id="calfAdd">Salvar bezerro</button>
   </div>
+  <div class="toolbar">
+    <input id="calfSearch" type="search" placeholder="Buscar bezerro por descrição ou brinco">
+  </div>
   <div id="calves" style="margin-top:8px"></div>
 </div>
 </section>
@@ -229,6 +287,16 @@ input,select{flex:1 1 130px}
     </div>
     <button id="badd">Adicionar conta</button>
   </div>
+  <div class="toolbar">
+    <input id="billSearch" type="search" placeholder="Buscar conta">
+    <select id="billFilter" aria-label="Filtrar contas">
+      <option value="all">Todas as contas</option>
+      <option value="open">Em aberto</option>
+      <option value="overdue">Vencidas</option>
+      <option value="today">Vencem hoje</option>
+      <option value="upcoming">Próximos 7 dias</option>
+    </select>
+  </div>
   <div id="bills" style="margin-top:8px"></div>
 </div>
 </section>
@@ -236,6 +304,7 @@ input,select{flex:1 1 130px}
 </div>
 </div>
 <div id="ask" hidden><div class="box"><p>Este lançamento é:</p><div class="s2"><button id="askIn">＋ Entrada</button><button id="askOut">－ Saída</button></div><button id="askCancel" class="x">Cancelar</button></div></div>
+<div id="editor" hidden><form class="box" id="editorForm"><h2 id="editorTitle">Editar registro</h2><div id="editorFields"></div><div class="editor-actions"><button type="button" id="editorCancel" class="secondary-button">Cancelar</button><button type="submit" id="editorSave">Salvar alterações</button></div></form></div>
 <div id="login"><div class="box">
   <img class="brand-logo" src="/logo.png" alt="Logo AgroBack">
   <h2>Controle Financeiro</h2>
@@ -280,9 +349,40 @@ document.querySelector('.side-nav').addEventListener('click',event=>{
 });
 const brl=n=>n.toLocaleString('pt-BR',{style:'currency',currency:'BRL'});
 const esc=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-let type='in',items=[],db=null,canWrite=true,initial=0,editing=false;
+let type='in',items=[],db=null,canWrite=true,initial=0,editing=false,recordEditor=null,recordsLoaded=false;
 const today=new Date();
 const iso=d=>d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+const validDate=value=>{
+  if(!/^\d{4}-\d{2}-\d{2}$/.test(value||''))return false;
+  const date=new Date(value+'T00:00:00');
+  return !Number.isNaN(date.getTime())&&iso(date)===value;
+};
+const notFuture=value=>validDate(value)&&value<=iso(new Date());
+function validateRecord(collection,data,id=''){
+  if(collection==='lancamentos'){
+    if(!['in','out'].includes(data.type))return 'Selecione entrada ou saída.';
+    if(!(Number.isFinite(data.value)&&data.value>0))return 'Informe um valor maior que zero.';
+    if(!validDate(data.date))return 'Informe uma data válida para o lançamento.';
+  }
+  if(collection==='contas'){
+    if(!data.desc.trim())return 'Informe a descrição da conta.';
+    if(!(Number.isFinite(data.value)&&data.value>0))return 'Informe um valor maior que zero.';
+    if(!validDate(data.due))return 'Informe uma data válida para o vencimento.';
+  }
+  if(collection==='vacas'){
+    if(!data.nome.trim())return 'Informe o nome ou brinco da vaca.';
+    if(!notFuture(data.cio))return 'A data do cio deve ser válida e não pode estar no futuro.';
+    const duplicate=cows.some(c=>c.id!==id&&(c.nome||'').trim().toLocaleLowerCase()===data.nome.trim().toLocaleLowerCase());
+    if(duplicate)return 'Já existe uma vaca cadastrada com esse nome ou brinco.';
+  }
+  if(collection==='bezerros'){
+    if(!data.descricao.trim()||!data.brinco.trim())return 'Informe a descrição e o número do brinco do bezerro.';
+    if(!notFuture(data.nascimento))return 'A data de nascimento deve ser válida e não pode estar no futuro.';
+    const tag=data.brinco.trim().toLocaleLowerCase();
+    if(calves.some(c=>c.id!==id&&(c.brinco||'').trim().toLocaleLowerCase()===tag))return 'Já existe um bezerro cadastrado com esse número de brinco.';
+  }
+  return '';
+}
 $('date').value=iso(today);
 $('month').value=iso(today).slice(0,7);
 try{$('who').value=localStorage.getItem('cf_who')||''}catch(e){}
@@ -294,9 +394,11 @@ document.querySelectorAll('.seg button').forEach(b=>b.onclick=()=>{
 
 function render(){
   const m=$('month').value;
-  const list=items.filter(i=>!m||i.date.startsWith(m)).sort((a,b)=>b.date.localeCompare(a.date)||b.ts-a.ts);
+  const monthItems=items.filter(i=>!m||i.date.startsWith(m));
+  const query=$('movementSearch').value.trim().toLocaleLowerCase();
+  const list=monthItems.filter(i=>!query||[i.desc,i.cat,i.who].some(value=>(value||'').toLocaleLowerCase().includes(query))).sort((a,b)=>b.date.localeCompare(a.date)||b.ts-a.ts);
   let tin=0,tout=0;const cats={};
-  list.forEach(i=>{
+  monthItems.forEach(i=>{
     if(i.type==='in')tin+=i.value;else{tout+=i.value;cats[i.cat||'Outros']=(cats[i.cat||'Outros']||0)+i.value}
   });
   $('sIn').textContent=brl(tin);$('sOut').textContent=brl(tout);
@@ -306,38 +408,53 @@ function render(){
   $('bars').innerHTML=ce.map(([k,v])=>`<div class="bar"><span>${esc(k)}</span><i style="width:${Math.max(4,v/ce[0][1]*55)}%"></i><span>${brl(v)}</span></div>`).join('');
   $('list').innerHTML=list.length?list.map(i=>{
     const [y,mo,d]=i.date.split('-');
-    return `<div class="item"><div class="d"><div>${esc(i.desc||'(sem descrição)')}</div><small>${d}/${mo}/${y}${i.cat?' · '+esc(i.cat):''}${i.who?' · '+esc(i.who):''}</small></div><div class="v ${i.type}">${i.type==='in'?'+':'−'} ${brl(i.value)}</div>${canWrite?`<button class="x" data-id="${i.id}" title="Excluir">✕</button>`:''}</div>`}).join(''):'<div class="empty">Nenhum lançamento neste mês.</div>';
+    return `<div class="item"><div class="d"><div>${esc(i.desc||'(sem descrição)')}</div><small>${d}/${mo}/${y}${i.cat?' · '+esc(i.cat):''}${i.who?' · '+esc(i.who):''}</small></div><div class="v ${i.type}">${i.type==='in'?'+':'−'} ${brl(i.value)}</div>${canWrite?`<div class="item-actions"><button class="record-edit x" data-id="${i.id}" title="Editar lançamento" aria-label="Editar lançamento">✎</button><button class="delete-record x" data-id="${i.id}" title="Excluir lançamento" aria-label="Excluir lançamento">✕</button></div>`:''}</div>`}).join(''):'<div class="empty">'+(query?'Nenhum lançamento corresponde à busca.':'Nenhum lançamento neste mês.')+'</div>';
 }
 $('month').onchange=render;
+$('movementSearch').oninput=render;
+$('clearMovementFilters').onclick=()=>{$('month').value='';$('movementSearch').value='';render()};
 let bills=[],barmed=null;
 const dd=s=>{const [y,m,d]=s.split('-');return d+'/'+m+'/'+y};
 function renderBills(){
   const t=iso(new Date());
   const l=[...bills].sort((a,b)=>a.due.localeCompare(b.due));
   const total=l.reduce((a,b)=>a+b.value,0);
+  const query=$('billSearch').value.trim().toLocaleLowerCase(),filter=$('billFilter').value;
+  const dueLimit=iso(new Date(Date.now()+7*86400000));
+  const visible=l.filter(b=>{
+      const matchesSearch=!query||(b.desc||'').toLocaleLowerCase().includes(query);
+    const matchesFilter=filter==='all'||filter==='open'&&b.due>=t||filter==='overdue'&&b.due<t||filter==='today'&&b.due===t||filter==='upcoming'&&b.due>=t&&b.due<=dueLimit;
+    return matchesSearch&&matchesFilter;
+  });
   $('billTotal').textContent=l.length?brl(total):'';
   $('dashboardBillTotal').textContent=l.length?brl(total):'';
   $('dashboardBills').innerHTML=l.length?l.map(b=>{
     const late=b.due<=t;
     const st=b.due<t?'Vencida em '+dd(b.due):b.due===t?'Vence hoje':'Vence em '+dd(b.due);
     return `<div class="bill"><div class="d"><div>${esc(b.desc||'(sem descrição)')}</div><small class="${late?'late':''}">${st}</small></div><div class="v out">${brl(b.value)}</div></div>`}).join(''):'<div class="empty">Nenhuma conta pendente.</div>';
-  $('bills').innerHTML=l.length?l.map(b=>{
+  $('bills').innerHTML=visible.length?visible.map(b=>{
     const late=b.due<=t;
     const st=b.due<t?'Vencida em '+dd(b.due):b.due===t?'Vence hoje':'Vence em '+dd(b.due);
-    return `<div class="bill"><div class="d"><div>${esc(b.desc||'(sem descrição)')}</div><small class="${late?'late':''}">${st}</small></div><div class="v out">${brl(b.value)}</div>${canWrite?`<button class="pay" data-id="${b.id}">Pagar</button><button class="bx x" data-id="${b.id}" title="Excluir">✕</button>`:''}</div>`}).join(''):'<div class="empty">Nenhuma conta pendente.</div>';
+    return `<div class="bill"><div class="d"><div>${esc(b.desc||'(sem descrição)')}</div><small class="${late?'late':''}">${st}</small></div><div class="v out">${brl(b.value)}</div>${canWrite?`<button class="pay" data-id="${b.id}">Pagar</button><button class="record-edit x" data-id="${b.id}" title="Editar conta" aria-label="Editar conta">✎</button><button class="bx x" data-id="${b.id}" title="Excluir">✕</button>`:''}</div>`}).join(''):'<div class="empty">'+(l.length?'Nenhuma conta corresponde aos filtros.':'Nenhuma conta pendente.')+'</div>';
+  renderAlerts();
 }
+ $('billSearch').oninput=renderBills;
+ $('billFilter').onchange=renderBills;
 function resetB(b){b.textContent=b.classList.contains('pay')?'Pagar':'✕';b.style.color='';b.style.fontWeight=''}
 $('badd').onclick=async()=>{
-  const value=parseFloat($('bval').value),due=$('bdue').value;
-  if(!(value>0)||!due){note('Informe o valor e o vencimento da conta.');return}
+  const data={desc:$('bdesc').value.trim(),value:parseFloat($('bval').value),due:$('bdue').value,ts:Date.now()};
+  const validation=validateRecord('contas',data);
+  if(validation){note(validation);return}
   if(!db){note('Faça login para acessar os dados compartilhados.');return}
   try{
-    await db.collection('contas').add({desc:$('bdesc').value.trim(),value,due,ts:Date.now()});
+    await db.collection('contas').add(data);
     $('bdesc').value='';$('bval').value='';$('bdue').value='';note('');
-    toast('✅ Conta adicionada: '+brl(value),'#2563eb');
+    toast('✅ Conta adicionada: '+brl(data.value),'#2563eb');
   }catch(err){note('Não foi possível salvar a conta: '+err.message)}
 };
 $('bills').onclick=async e=>{
+  const edit=e.target.closest('.record-edit');
+  if(edit){const bill=bills.find(x=>x.id===edit.dataset.id);if(bill)openEditor('contas',bill);return}
   const b=e.target.closest('.pay,.bx');
   if(!b||!db)return;
   if(barmed!==b){
@@ -355,6 +472,7 @@ $('bills').onclick=async e=>{
     }
     await db.collection('contas').doc(b.dataset.id).delete();
     barmed=null;note('');
+    if(b.classList.contains('bx'))toast('✅ Conta excluída.','#15803d');
   }catch(err){note('Não foi possível concluir a operação: '+err.message)}
 };
 let cows=[],carmed=null,calves=[],calved=null;
@@ -362,7 +480,8 @@ const addM=(s,n)=>{const [y,m,d]=s.split('-').map(Number);const last=new Date(y,
 const addD=(s,n)=>{const [y,m,d]=s.split('-').map(Number);return iso(new Date(y,m-1,d+n))};
 function renderCows(){
   const t=iso(new Date());
-  const l=[...cows].filter(c=>(!$('cfrom').value||c.parto>=$('cfrom').value)&&(!$('cto').value||c.parto<=$('cto').value)).sort((a,b)=>a.parto.localeCompare(b.parto));
+  const query=$('cowSearch').value.trim().toLocaleLowerCase();
+  const l=[...cows].filter(c=>(!$('cfrom').value||c.parto>=$('cfrom').value)&&(!$('cto').value||c.parto<=$('cto').value)&&(!query||(c.nome||'').toLocaleLowerCase().includes(query))).sort((a,b)=>a.parto.localeCompare(b.parto));
   $('cowCount').textContent=cows.length?l.length+' de '+cows.length+(cows.length>1?' vacas':' vaca'):'';
   $('cows').innerHTML=l.length?l.map(c=>{
     const n=Math.round((new Date(c.parto+'T00:00:00')-new Date(t+'T00:00:00'))/864e5);
@@ -371,7 +490,8 @@ function renderCows(){
     const dryDays=Math.round((new Date(dryOff+'T00:00:00')-new Date(t+'T00:00:00'))/864e5);
     const dryStatus=n<0?'Data prevista de parto passou':dryDays>1?'Secar em '+dryDays+' dias':dryDays===1?'Secar amanhã':dryDays===0?'Secar hoje':'Secagem atrasada há '+(-dryDays)+((-dryDays)===1?' dia':' dias');
     const dryClass=n>=0&&dryDays<=0?'late':'';
-    return `<div class="bill"><div class="d"><div>🐄 ${esc(c.nome||'(sem nome)')}</div><small>Cio: ${dd(c.cio)} · Parto previsto: <b>${dd(c.parto)}</b></small><br><small class="${n<=30?'late':''}">${st}</small><br><small class="${dryClass}">Secagem: ${dd(dryOff)} · ${dryStatus}</small></div>${canWrite?`<button class="cx x" data-id="${c.id}" title="Remover">✕</button>`:''}</div>`}).join(''):'<div class="empty">'+(cows.length?'Nenhuma vaca com parto previsto neste período.':'Nenhuma vaca registrada.')+'</div>';
+    return `<div class="bill"><div class="d"><div>🐄 ${esc(c.nome||'(sem nome)')}</div><small>Cio: ${dd(c.cio)} · Parto previsto: <b>${dd(c.parto)}</b></small><br><small class="${n<=30?'late':''}">${st}</small><br><small class="${dryClass}">Secagem: ${dd(dryOff)} · ${dryStatus}</small></div>${canWrite?`<button class="record-edit x" data-id="${c.id}" title="Editar vaca" aria-label="Editar vaca">✎</button><button class="cx x" data-id="${c.id}" title="Remover">✕</button>`:''}</div>`}).join(''):'<div class="empty">'+(cows.length?'Nenhuma vaca corresponde aos filtros.':'Nenhuma vaca registrada.')+'</div>';
+  renderAlerts();
 }
 $('cdate').value=iso(new Date());
 const setCowRange=days=>{const d=new Date();$('cfrom').value=iso(d);d.setDate(d.getDate()+days);$('cto').value=iso(d)};
@@ -381,10 +501,11 @@ $('cfrom').onchange=$('cto').onchange=renderCows;
 $('cweek').onclick=()=>{wk();renderCows()};
 $('cmonth').onclick=()=>{setCowRange(30);renderCows()};
 $('cdryoff').onclick=()=>{setCowRange(60);renderCows()};
-$('call').onclick=()=>{$('cfrom').value='';$('cto').value='';renderCows()};
+$('call').onclick=()=>{$('cfrom').value='';$('cto').value='';$('cowSearch').value='';renderCows()};
 $('cadd').onclick=async()=>{
   const cio=$('cdate').value,nome=$('cname').value.trim();
-  if(!nome||!cio){note('Informe o nome da vaca e a data do cio.');return}
+  const validation=validateRecord('vacas',{nome,cio});
+  if(validation){note(validation);return}
   if(!db){note('Faça login para acessar os dados compartilhados.');return}
   try{
     await db.collection('vacas').add({nome,cio,parto:addM(cio,9),ts:Date.now()});
@@ -393,6 +514,8 @@ $('cadd').onclick=async()=>{
   }catch(err){note('Não foi possível salvar os dados da vaca: '+err.message)}
 };
 $('cows').onclick=async e=>{
+  const edit=e.target.closest('.record-edit');
+  if(edit){const cow=cows.find(x=>x.id===edit.dataset.id);if(cow)openEditor('vacas',cow);return}
   const b=e.target.closest('.cx');
   if(!b||!db)return;
   if(carmed!==b){
@@ -401,17 +524,22 @@ $('cows').onclick=async e=>{
     setTimeout(()=>{if(carmed===b&&b.isConnected){b.textContent='✕';b.style.color='';b.style.fontWeight='';carmed=null}},4000);
     return;
   }
-  try{await db.collection('vacas').doc(b.dataset.id).delete();carmed=null;note('')}catch(err){note('Não foi possível remover a vaca: '+err.message)}
+  try{await db.collection('vacas').doc(b.dataset.id).delete();carmed=null;note('');toast('✅ Vaca removida.','#15803d')}catch(err){note('Não foi possível remover a vaca: '+err.message)}
 };
 function renderCalves(){
-  const ordered=[...calves].sort((a,b)=>b.nascimento.localeCompare(a.nascimento));
+  const query=$('calfSearch').value.trim().toLocaleLowerCase();
+  const ordered=[...calves].filter(c=>!query||(c.descricao||'').toLocaleLowerCase().includes(query)||(c.brinco||'').toLocaleLowerCase().includes(query)).sort((a,b)=>b.nascimento.localeCompare(a.nascimento));
   $('calfCount').textContent=calves.length?calves.length+(calves.length===1?' bezerro':' bezerros'):'';
-  $('calves').innerHTML=ordered.length?ordered.map(c=>`<div class="bill"><div class="d"><div>🐮 ${esc(c.descricao||'(sem descrição)')}</div><small>Nascimento: ${dd(c.nascimento)} · Brinco: ${esc(c.brinco||'(não informado)')}</small></div>${canWrite?`<button class="calf-remove x" data-id="${c.id}" title="Remover">✕</button>`:''}</div>`).join(''):'<div class="empty">Nenhum bezerro registrado.</div>';
+  $('calves').innerHTML=ordered.length?ordered.map(c=>`<div class="bill"><div class="d"><div>🐮 ${esc(c.descricao||'(sem descrição)')}</div><small>Nascimento: ${dd(c.nascimento)} · Brinco: ${esc(c.brinco||'(não informado)')}</small></div>${canWrite?`<button class="record-edit x" data-id="${c.id}" title="Editar bezerro" aria-label="Editar bezerro">✎</button><button class="calf-remove x" data-id="${c.id}" title="Remover">✕</button>`:''}</div>`).join(''):'<div class="empty">'+(calves.length?'Nenhum bezerro corresponde à busca.':'Nenhum bezerro registrado.')+'</div>';
+  renderAlerts();
 }
+$('cowSearch').oninput=renderCows;
+$('calfSearch').oninput=renderCalves;
 $('calfBirth').value=iso(new Date());
 $('calfAdd').onclick=async()=>{
   const descricao=$('calfDescription').value.trim(),nascimento=$('calfBirth').value,brinco=$('calfTag').value.trim();
-  if(!descricao||!nascimento||!brinco){note('Informe a descrição, a data de nascimento e o número do brinco do bezerro.');return}
+  const validation=validateRecord('bezerros',{descricao,nascimento,brinco});
+  if(validation){note(validation);return}
   if(!db){note('Faça login para acessar os dados compartilhados.');return}
   try{
     await db.collection('bezerros').add({descricao,nascimento,brinco,ts:Date.now()});
@@ -420,6 +548,8 @@ $('calfAdd').onclick=async()=>{
   }catch(err){note('Não foi possível salvar os dados do bezerro: '+err.message)}
 };
 $('calves').onclick=async e=>{
+  const edit=e.target.closest('.record-edit');
+  if(edit){const calf=calves.find(x=>x.id===edit.dataset.id);if(calf)openEditor('bezerros',calf);return}
   const b=e.target.closest('.calf-remove');
   if(!b||!db)return;
   if(calved!==b){
@@ -428,7 +558,146 @@ $('calves').onclick=async e=>{
     setTimeout(()=>{if(calved===b&&b.isConnected){b.textContent='✕';b.style.color='';b.style.fontWeight='';calved=null}},4000);
     return;
   }
-  try{await db.collection('bezerros').doc(b.dataset.id).delete();calved=null;note('')}catch(err){note('Não foi possível remover o bezerro: '+err.message)}
+  try{await db.collection('bezerros').doc(b.dataset.id).delete();calved=null;note('');toast('✅ Bezerro removido.','#15803d')}catch(err){note('Não foi possível remover o bezerro: '+err.message)}
+};
+function renderAlerts(){
+  const todayIso=iso(new Date()),nextWeek=iso(new Date(Date.now()+7*86400000)),nextMonth=iso(new Date(Date.now()+30*86400000));
+  const overdue=bills.filter(b=>b.due<todayIso);
+  const dueToday=bills.filter(b=>b.due===todayIso);
+  const births=cows.filter(c=>c.parto>=todayIso&&c.parto<=nextMonth).sort((a,b)=>a.parto.localeCompare(b.parto));
+  const dryOffs=cows.filter(c=>c.parto>=todayIso&&addD(c.parto,-60)<=nextWeek).sort((a,b)=>addD(a.parto,-60).localeCompare(addD(b.parto,-60)));
+  $('dashboardOpenBills').textContent=String(bills.length);
+  $('dashboardCowCount').textContent=String(cows.length);
+  $('dashboardCalfCount').textContent=String(calves.length);
+  $('dashboardBirthCount').textContent=String(births.length);
+  const alerts=[
+    ...overdue.map(b=>({urgent:true,text:`Conta vencida: ${b.desc||'(sem descrição)'} · ${brl(b.value)} · ${dd(b.due)}`})),
+    ...dueToday.map(b=>({urgent:true,text:`Conta vence hoje: ${b.desc||'(sem descrição)'} · ${brl(b.value)}`})),
+    ...dryOffs.map(c=>({urgent:addD(c.parto,-60)<todayIso,text:`${addD(c.parto,-60)<todayIso?'Secagem atrasada':'Programar secagem'}: ${c.nome} · ${dd(addD(c.parto,-60))}`})),
+    ...births.map(c=>({urgent:false,text:`Parto previsto: ${c.nome} · ${dd(c.parto)}`}))
+  ];
+  $('dashboardAlerts').innerHTML=alerts.length?alerts.slice(0,10).map(a=>`<div class="alert-row${a.urgent?' urgent':''}">${a.urgent?'⚠️':'📅'} ${esc(a.text)}</div>`).join(''):'<div class="empty">Nenhuma conta vencida ou cuidado pecuário próximo.</div>';
+}
+
+const editorFields={
+  lancamentos:[['type','Tipo','select'],['desc','Descrição','text'],['value','Valor (R$)','number'],['cat','Categoria','text'],['date','Data','date'],['who','Responsável','text']],
+  contas:[['desc','Descrição da conta','text'],['value','Valor (R$)','number'],['due','Vencimento','date']],
+  vacas:[['nome','Nome ou brinco da vaca','text'],['cio','Data do cio','date']],
+  bezerros:[['descricao','Descrição do bezerro','text'],['nascimento','Data de nascimento','date'],['brinco','Número do brinco','text']]
+};
+const editorTitles={lancamentos:'Editar lançamento',contas:'Editar conta',vacas:'Editar vaca',bezerros:'Editar bezerro'};
+function openEditor(collection,record){
+  if(!canWrite)return;
+  recordEditor={collection,id:record.id};
+  $('editorTitle').textContent=editorTitles[collection];
+  $('editorFields').innerHTML=editorFields[collection].map(([name,label,inputType])=>{
+    const value=record[name]??'';
+    if(inputType==='select')return `<label class="edit-field">${label}<select name="${name}" required><option value="in"${value==='in'?' selected':''}>Entrada</option><option value="out"${value==='out'?' selected':''}>Saída</option></select></label>`;
+    const numberAttrs=inputType==='number'?' inputmode="decimal" min="0.01" step="0.01"':'';
+    return `<label class="edit-field">${label}<input name="${name}" type="${inputType}" value="${esc(value)}"${numberAttrs} required></label>`;
+  }).join('');
+  $('editor').hidden=false;
+  $('editorFields').querySelector('input,select')?.focus();
+}
+$('editorCancel').onclick=()=>{$('editor').hidden=true;recordEditor=null};
+$('editor').onclick=e=>{if(e.target===$('editor')){$('editor').hidden=true;recordEditor=null}};
+$('editorForm').onsubmit=async e=>{
+  e.preventDefault();
+  if(!recordEditor||!db)return;
+  const values=Object.fromEntries(new FormData(e.currentTarget));
+  const {collection,id}=recordEditor;
+  let data;
+  if(collection==='lancamentos')data={...values,value:parseFloat(values.value),ts:Date.now()};
+  else if(collection==='contas')data={...values,value:parseFloat(values.value),ts:Date.now()};
+  else if(collection==='vacas')data={nome:values.nome.trim(),cio:values.cio,parto:addM(values.cio,9),ts:Date.now()};
+  else data={descricao:values.descricao.trim(),nascimento:values.nascimento,brinco:values.brinco.trim(),ts:Date.now()};
+  const validation=validateRecord(collection,data,id);
+  if(validation){note(validation);return}
+  $('editorSave').disabled=true;
+  try{
+    await db.collection(collection).doc(id).set(data);
+    $('editor').hidden=true;recordEditor=null;note('');
+    toast('✅ Alterações salvas.','#15803d');
+  }catch(error){note('Não foi possível salvar as alterações: '+error.message)}
+  finally{$('editorSave').disabled=false}
+};
+document.addEventListener('keydown',e=>{if(e.key==='Escape'&&!$('editor').hidden){$('editor').hidden=true;recordEditor=null}});
+
+const backupCollections=['lancamentos','contas','vacas','bezerros'];
+function downloadFile(filename,content,type){
+  const blob=new Blob([content],{type}),url=URL.createObjectURL(blob),anchor=document.createElement('a');
+  anchor.href=url;anchor.download=filename;anchor.click();
+  setTimeout(()=>URL.revokeObjectURL(url),1000);
+}
+function allExportRows(){
+  return [
+    {tipo:'Saldo inicial',data:'',descricao:'Saldo inicial',brinco:'',categoria:'',valor:initial,status:'',responsavel:''},
+    ...items.map(i=>({tipo:i.type==='in'?'Entrada':'Saída',data:i.date,descricao:i.desc||'',brinco:'',categoria:i.cat||'',valor:i.value,status:'',responsavel:i.who||''})),
+    ...bills.map(b=>({tipo:'Conta a pagar',data:b.due,descricao:b.desc||'',brinco:'',categoria:'',valor:b.value,status:b.due<iso(new Date())?'Vencida':'Pendente',responsavel:''})),
+    ...cows.map(c=>({tipo:'Vaca',data:c.cio,descricao:c.nome||'',brinco:'',categoria:'',valor:'',status:'Parto previsto '+dd(c.parto),responsavel:''})),
+    ...calves.map(c=>({tipo:'Bezerro',data:c.nascimento,descricao:c.descricao||'',brinco:c.brinco||'',categoria:'',valor:'',status:'',responsavel:''}))
+  ];
+}
+$('exportCsv').onclick=()=>{
+  if(!recordsLoaded){note('Aguarde a sincronização dos dados antes de exportar.');return}
+  const columns=['tipo','data','descricao','brinco','categoria','valor','status','responsavel'];
+  const rows=allExportRows();
+  const csv=[columns.join(';'),...rows.map(row=>columns.map(key=>`"${String(row[key]??'').replaceAll('"','""')}"`).join(';'))].join('\r\n');
+  downloadFile(`agroback-dados-${iso(new Date())}.csv`,'\uFEFF'+csv,'text/csv;charset=utf-8');
+  toast(`✅ CSV exportado (${rows.length} registros).`,'#15803d');
+};
+$('exportBackup').onclick=()=>{
+  if(!db){note('Faça login para acessar os dados compartilhados.');return}
+  if(!recordsLoaded){note('Aguarde a sincronização dos dados antes de baixar o backup.');return}
+  const collections=Object.fromEntries(backupCollections.map(name=>[name,(name==='lancamentos'?items:name==='contas'?bills:name==='vacas'?cows:calves).map(({id,...data})=>({id,...data}))]));
+  collections.config=[{id:'saldo',value:initial}];
+  downloadFile(`agroback-backup-${iso(new Date())}.json`,JSON.stringify({version:1,exportedAt:new Date().toISOString(),collections},null,2),'application/json');
+  toast('✅ Backup JSON baixado.','#15803d');
+};
+$('importBackupButton').onclick=()=>{
+  if(!db){note('Faça login para acessar os dados compartilhados.');return}
+  if(!recordsLoaded){note('Aguarde a sincronização dos dados antes de restaurar um backup.');return}
+  $('backupFile').click();
+};
+$('backupFile').onchange=async e=>{
+  const file=e.target.files[0];
+  e.target.value='';
+  if(!file)return;
+  if(file.size>10_000_000){note('O arquivo de backup excede o limite de 10 MB.');return}
+  try{
+    const backup=JSON.parse(await file.text());
+    if(backup.version!==1||!backup.collections||typeof backup.collections!=='object'||Array.isArray(backup.collections))throw new Error('Formato de backup não reconhecido.');
+    const validCollections=[...backupCollections,'config'];
+    if(Object.keys(backup.collections).some(name=>!validCollections.includes(name)))throw new Error('O backup contém coleções incompatíveis.');
+    const prepared=[];
+    for(const name of validCollections){
+      const entries=backup.collections[name]??[];
+      if(!Array.isArray(entries))throw new Error(`A lista ${name} é inválida.`);
+      for(const record of entries){
+        if(!record||typeof record.id!=='string'||!record.id.trim())throw new Error(`Há um registro sem identificador em ${name}.`);
+        const {id,...data}=record;
+        if(!data||typeof data!=='object'||Array.isArray(data))throw new Error(`Há um registro inválido em ${name}.`);
+        const valid=name==='config'?Number.isFinite(data.value)
+          :name==='lancamentos'?['in','out'].includes(data.type)&&Number.isFinite(data.value)&&data.value>0&&validDate(data.date)
+          :name==='contas'?typeof data.desc==='string'&&data.desc.trim()&&Number.isFinite(data.value)&&data.value>0&&validDate(data.due)
+          :name==='vacas'?typeof data.nome==='string'&&data.nome.trim()&&validDate(data.cio)&&validDate(data.parto)
+          :typeof data.descricao==='string'&&data.descricao.trim()&&typeof data.brinco==='string'&&data.brinco.trim()&&notFuture(data.nascimento);
+        if(!valid)throw new Error(`O registro ${id} em ${name} tem dados inválidos.`);
+        prepared.push({name,id,data});
+      }
+    }
+    if(!prepared.length)throw new Error('O backup não contém registros para restaurar.');
+    if(!confirm(`Restaurar ${prepared.length} registros? Os registros existentes com o mesmo identificador serão atualizados; os demais dados não serão apagados.`))return;
+    let restored=0;
+    try{
+      for(const record of prepared){
+        await db.collection(record.name).doc(record.id).set(record.data);
+        restored++;
+      }
+    }catch(error){throw new Error(`Falha após restaurar ${restored} de ${prepared.length} registros: ${error.message}`)}
+    toast(`✅ Backup restaurado: ${restored} registros. Atualize a página se necessário.`,'#15803d');
+    note('');
+  }catch(error){note('Não foi possível restaurar o backup: '+error.message)}
 };
 let me=null,started=false;
 const ALLOWED=['gabriel','alipio'];
@@ -478,7 +747,9 @@ const note=t=>{$('msg').textContent=t};
 let tt;function toast(t,c){const e=$('toast');e.textContent=t;e.style.background=c;e.classList.add('show');clearTimeout(tt);tt=setTimeout(()=>e.classList.remove('show'),3000)}
 let armed=null;
 $('list').onclick=async e=>{
-  const b=e.target.closest('.x');
+  const edit=e.target.closest('.record-edit');
+  if(edit){const item=items.find(x=>x.id===edit.dataset.id);if(item)openEditor('lancamentos',item);return}
+  const b=e.target.closest('.delete-record');
   if(!b||!db)return;
   if(armed!==b){
     if(armed&&armed.isConnected){armed.textContent='✕';armed.style.color='';armed.style.fontWeight=''}
@@ -486,12 +757,13 @@ $('list').onclick=async e=>{
     setTimeout(()=>{if(armed===b&&b.isConnected){b.textContent='✕';b.style.color='';b.style.fontWeight='';armed=null}},4000);
     return;
   }
-  try{await db.collection('lancamentos').doc(b.dataset.id).delete();armed=null;note('')}catch(err){note('Não foi possível excluir o lançamento: '+err.message)}
+  try{await db.collection('lancamentos').doc(b.dataset.id).delete();armed=null;note('');toast('✅ Lançamento excluído.','#15803d')}catch(err){note('Não foi possível excluir o lançamento: '+err.message)}
 };
 
 $('add').onclick=()=>{
   const v=parseFloat($('val').value);
   if(!(v>0)){note('Informe um valor maior que zero.');return}
+  if(!validDate($('date').value)){note('Informe uma data válida para o lançamento.');return}
   if(!db){note('Faça login para acessar os dados compartilhados.');return}
   note('');$('ask').hidden=false;
 };
@@ -501,13 +773,15 @@ $('askOut').onclick=()=>save('out');
 async function save(type){
   $('ask').hidden=true;
   const value=parseFloat($('val').value);
-  if(!(value>0)){note('Informe um valor maior que zero.');return}
+  const transaction={type,value,desc:$('desc').value.trim(),cat:$('cat').value.trim(),date:$('date').value||iso(new Date()),who:$('who').value.trim(),ts:Date.now()};
+  const validation=validateRecord('lancamentos',transaction);
+  if(validation){note(validation);return}
   if(!db){note('Faça login para acessar os dados compartilhados.');return}
-  const who=$('who').value.trim();
+  const who=transaction.who;
   try{localStorage.setItem('cf_who',who)}catch(e){}
   $('add').disabled=true;
   try{
-    await db.collection('lancamentos').add({type,value,desc:$('desc').value.trim(),cat:$('cat').value.trim(),date:$('date').value||iso(new Date()),who,ts:Date.now()});
+    await db.collection('lancamentos').add(transaction);
     $('desc').value='';$('val').value='';
     toast(type==='in'?'✅ Entrada lançada: '+brl(value):'✅ Saída lançada: '+brl(value),type==='in'?'#15803d':'#dc2626');
   note('')}catch(err){note('Não foi possível salvar o lançamento: '+err.message)}
@@ -534,6 +808,7 @@ function createSharedDb(){
   const refresh=async()=>{
     if(loading||!subscriptions.size)return;
     loading=true;
+    $('syncStatus').textContent='Sincronizando...';
     try{
       const records=await apiRequest('/api/records');
       subscriptions.forEach(subscription=>{
@@ -545,7 +820,10 @@ function createSharedDb(){
         const serialized=JSON.stringify(value,(key,item)=>typeof item==='function'?item():item);
         if(serialized!==subscription.previous){subscription.previous=serialized;subscription.callback(value)}
       });
+      recordsLoaded=true;
+      $('syncStatus').textContent='Sincronizado às '+new Date().toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'});
     }catch(error){
+      $('syncStatus').textContent='Falha ao sincronizar';
       subscriptions.forEach(subscription=>subscription.onError?.(error));
     }finally{loading=false}
   };

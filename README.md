@@ -49,3 +49,5 @@ npm run dev:demo
 ```
 
 Abra a URL exibida no terminal (normalmente `http://localhost:3000` ou a URL encaminhada pelo Codespaces), em vez da prévia estática da porta 5500. Entre com `gabriel` ou `alipio` e a senha `teste123`. A senha pode ser alterada definindo `LOCAL_DEMO_PASSWORD`. Os dados desse modo ficam somente na memória e são apagados quando o servidor é encerrado; esse modo é apenas para testes e não deve ser usado com dados reais.
+
+Na aplicação, os lançamentos, contas e animais podem ser pesquisados e editados. O painel mostra contas vencidas e próximos cuidados pecuários. **Exportar dados em CSV** gera uma planilha dos registros; **Baixar backup JSON** cria um arquivo completo que pode ser restaurado pelo botão correspondente. A restauração atualiza os registros com o mesmo identificador e não apaga outros registros existentes.
