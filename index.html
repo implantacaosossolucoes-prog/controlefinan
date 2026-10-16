@@ -566,11 +566,35 @@ $('cows').onclick=async e=>{
   }
   try{await db.collection('vacas').doc(b.dataset.id).delete();carmed=null;note('');toast('✅ Vaca removida.','#15803d')}catch(err){note('Não foi possível remover a vaca: '+err.message)}
 };
+function calfAge(birthDate){
+  if(!validDate(birthDate))return '';
+  const [birthYear,birthMonth,birthDay]=birthDate.split('-').map(Number);
+  const today=new Date();
+  const elapsedMonths=(today.getFullYear()-birthYear)*12+today.getMonth()-(birthMonth-1);
+  const monthDate=new Date(birthYear,birthMonth-1+elapsedMonths,1);
+  const monthDay=Math.min(birthDay,new Date(monthDate.getFullYear(),monthDate.getMonth()+1,0).getDate());
+  const monthAnniversary=new Date(monthDate.getFullYear(),monthDate.getMonth(),monthDay);
+  const completedMonths=elapsedMonths-(monthAnniversary>today?1:0);
+  if(completedMonths<0)return '';
+  const completedDate=new Date(birthYear,birthMonth-1+completedMonths,1);
+  const completedDay=Math.min(birthDay,new Date(completedDate.getFullYear(),completedDate.getMonth()+1,0).getDate());
+  const ageDays=Math.floor((Date.UTC(today.getFullYear(),today.getMonth(),today.getDate())-Date.UTC(completedDate.getFullYear(),completedDate.getMonth(),completedDay))/86400000);
+  const years=Math.floor(completedMonths/12),months=completedMonths%12;
+  const parts=[];
+  if(years)parts.push(`${years} ${years===1?'ano':'anos'}`);
+  if(months)parts.push(`${months} ${months===1?'mês':'meses'}`);
+  if(ageDays||!parts.length)parts.push(`${ageDays} ${ageDays===1?'dia':'dias'}`);
+  return parts.length>1?`${parts.slice(0,-1).join(', ')} e ${parts.at(-1)}`:parts[0];
+}
+let calfAgeRefreshTimer;
 function renderCalves(){
   const query=$('calfSearch').value.trim().toLocaleLowerCase();
   const ordered=[...calves].filter(c=>!query||(c.descricao||'').toLocaleLowerCase().includes(query)||(c.brinco||'').toLocaleLowerCase().includes(query)).sort((a,b)=>b.nascimento.localeCompare(a.nascimento));
   $('calfCount').textContent=calves.length?calves.length+(calves.length===1?' bezerro':' bezerros'):'';
-  $('calves').innerHTML=ordered.length?ordered.map(c=>`<div class="bill calf-record"><div class="d"><div>🐮 ${esc(c.descricao||'(sem descrição)')}</div><small>Nascimento: ${dd(c.nascimento)} · Brinco: ${esc(c.brinco||'(não informado)')}</small>${c.photoAnimal||c.photoTag?`<div class="calf-photos">${c.photoAnimal?calfPhotoMarkup(c,'animal',`Foto de ${c.descricao||'bezerro'}`,'Foto do bezerro'):''}${c.photoTag?calfPhotoMarkup(c,'tag',`Foto do brinco ${c.brinco||''}`,'Foto do brinco'):''}</div>`:''}</div>${canWrite?`<div class="calf-photo-actions"><button class="photo-action secondary-button" data-photo-kind="animal" data-id="${c.id}">${c.photoAnimal?'Trocar':'Adicionar'} foto do bezerro</button><button class="photo-action secondary-button" data-photo-kind="tag" data-id="${c.id}">${c.photoTag?'Trocar':'Adicionar'} foto do brinco</button><button class="record-edit x" data-id="${c.id}" title="Editar bezerro" aria-label="Editar bezerro">✎</button><button class="calf-remove x" data-id="${c.id}" title="Remover">✕</button></div>`:''}</div>`).join(''):'<div class="empty">'+(calves.length?'Nenhum bezerro corresponde à busca.':'Nenhum bezerro registrado.')+'</div>';
+  $('calves').innerHTML=ordered.length?ordered.map(c=>`<div class="bill calf-record"><div class="d"><div>🐮 ${esc(c.descricao||'(sem descrição)')}</div><small>Nascimento: ${dd(c.nascimento)} · Brinco: ${esc(c.brinco||'(não informado)')}</small><small>Idade: ${calfAge(c.nascimento)}</small>${c.photoAnimal||c.photoTag?`<div class="calf-photos">${c.photoAnimal?calfPhotoMarkup(c,'animal',`Foto de ${c.descricao||'bezerro'}`,'Foto do bezerro'):''}${c.photoTag?calfPhotoMarkup(c,'tag',`Foto do brinco ${c.brinco||''}`,'Foto do brinco'):''}</div>`:''}</div>${canWrite?`<div class="calf-photo-actions"><button class="photo-action secondary-button" data-photo-kind="animal" data-id="${c.id}">${c.photoAnimal?'Trocar':'Adicionar'} foto do bezerro</button><button class="photo-action secondary-button" data-photo-kind="tag" data-id="${c.id}">${c.photoTag?'Trocar':'Adicionar'} foto do brinco</button><button class="record-edit x" data-id="${c.id}" title="Editar bezerro" aria-label="Editar bezerro">✎</button><button class="calf-remove x" data-id="${c.id}" title="Remover">✕</button></div>`:''}</div>`).join(''):'<div class="empty">'+(calves.length?'Nenhum bezerro corresponde à busca.':'Nenhum bezerro registrado.')+'</div>';
+  clearTimeout(calfAgeRefreshTimer);
+  const now=new Date(),midnight=new Date(now.getFullYear(),now.getMonth(),now.getDate()+1);
+  calfAgeRefreshTimer=setTimeout(renderCalves,midnight-now+1000);
   renderAlerts();
 }
 $('cowSearch').oninput=renderCows;
