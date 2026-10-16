@@ -287,7 +287,7 @@ input,select{flex:1 1 130px}
     <div class="row">
       <input id="calfDescription" placeholder="Descrição do bezerro">
       <input id="calfBirth" type="date" title="Data de nascimento">
-      <input id="calfTag" placeholder="Número do brinco">
+      <input id="calfTag" type="text" inputmode="numeric" placeholder="Número do brinco">
     </div>
     <div class="photo-fields">
       <label class="photo-field"><span>📷 Foto do bezerro<small>Toque para abrir a câmera ou galeria</small></span>
@@ -689,18 +689,19 @@ const editorFields={
   lancamentos:[['type','Tipo','select'],['desc','Descrição','text'],['value','Valor (R$)','number'],['cat','Categoria','text'],['date','Data','date'],['who','Responsável','text']],
   contas:[['desc','Descrição da conta','text'],['value','Valor (R$)','number'],['due','Vencimento','date']],
   vacas:[['nome','Nome ou brinco da vaca','text'],['cio','Data do cio','date']],
-  bezerros:[['descricao','Descrição do bezerro','text'],['nascimento','Data de nascimento','date'],['brinco','Número do brinco','text']]
+  bezerros:[['descricao','Descrição do bezerro','text'],['nascimento','Data de nascimento','date'],['brinco','Número do brinco','text','numeric']]
 };
 const editorTitles={lancamentos:'Editar lançamento',contas:'Editar conta',vacas:'Editar vaca',bezerros:'Editar bezerro'};
 function openEditor(collection,record){
   if(!canWrite)return;
   recordEditor={collection,id:record.id,data:{...record}};
   $('editorTitle').textContent=editorTitles[collection];
-  $('editorFields').innerHTML=editorFields[collection].map(([name,label,inputType])=>{
+  $('editorFields').innerHTML=editorFields[collection].map(([name,label,inputType,keyboardMode])=>{
     const value=record[name]??'';
     if(inputType==='select')return `<label class="edit-field">${label}<select name="${name}" required><option value="in"${value==='in'?' selected':''}>Entrada</option><option value="out"${value==='out'?' selected':''}>Saída</option></select></label>`;
     const numberAttrs=inputType==='number'?' inputmode="decimal" min="0.01" step="0.01"':'';
-    return `<label class="edit-field">${label}<input name="${name}" type="${inputType}" value="${esc(value)}"${numberAttrs} required></label>`;
+    const inputMode=keyboardMode==='numeric'?' inputmode="numeric"':'';
+    return `<label class="edit-field">${label}<input name="${name}" type="${inputType}" value="${esc(value)}"${numberAttrs}${inputMode} required></label>`;
   }).join('');
   $('editor').hidden=false;
   $('editorFields').querySelector('input,select')?.focus();
