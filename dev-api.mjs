@@ -16,11 +16,11 @@ function send(response, status, payload, headers = {}) {
   response.end(JSON.stringify(payload));
 }
 
-async function parseBody(request) {
+async function parseBody(request, maxBytes = 1_000_000) {
   let body = '';
   for await (const chunk of request) {
     body += chunk;
-    if (body.length > 1_000_000) throw Object.assign(new Error('A solicitação excedeu o limite permitido.'), { statusCode: 413 });
+    if (body.length > maxBytes) throw Object.assign(new Error('A solicitação excedeu o limite permitido.'), { statusCode: 413 });
   }
   try {
     return JSON.parse(body || '{}');
@@ -92,18 +92,28 @@ export default async function devApiHandler(request, response) {
       const field = kind === 'animal' ? 'photoAnimal' : 'photoTag';
 
       if (request.method === 'POST') {
-        const body = await parseBody(request);
-        if (typeof body.image !== 'string' || !/^[A-Za-z0-9+/]+={0,2}$/.test(body.image)) {
+        if (request.headers['content-type'] !== 'image/jpeg') {
           return send(response, 400, { error: 'A imagem enviada é inválida.' });
         }
-        const image = Buffer.from(body.image, 'base64');
-        if (!image.length || image.length > 700_000 || image.toString('base64') !== body.image) {
+        let image = request.body;
+        if (typeof image === 'string') image = Buffer.from(image, 'binary');
+        if (!Buffer.isBuffer(image)) {
+          const chunks = [];
+          let size = 0;
+          for await (const chunk of request) {
+            size += chunk.length;
+            if (size > 700_000) return send(response, 413, { error: 'A foto excede o limite de tamanho.' });
+            chunks.push(chunk);
+          }
+          image = Buffer.concat(chunks, size);
+        }
+        if (!image.length || image.length > 700_000) {
           return send(response, 413, { error: 'A foto excede o limite de tamanho.' });
         }
         if (image.subarray(0, 3).toString('hex') !== 'ffd8ff') return send(response, 400, { error: 'Envie uma foto válida em formato JPEG.' });
         calfPhotos.set(key, image);
-        records.get('bezerros').set(calfId, { ...calf, [field]: true });
-        return send(response, 200, { saved: true });
+        const version = randomUUID();
+        return send(response, 200, { saved: true, field, version });
       }
 
       if (request.method === 'GET') {
@@ -111,7 +121,7 @@ export default async function devApiHandler(request, response) {
         if (!calf[field] || !image) return send(response, 404, { error: 'Foto não cadastrada.' });
         response.statusCode = 200;
         response.setHeader('Content-Type', 'image/jpeg');
-        response.setHeader('Cache-Control', 'private, no-store');
+        response.setHeader('Cache-Control', 'private, max-age=86400, immutable');
         response.setHeader('X-Content-Type-Options', 'nosniff');
         response.end(image);
         return;

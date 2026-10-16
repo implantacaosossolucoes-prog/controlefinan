@@ -36,6 +36,24 @@ async function parseBody(request, maxBytes = 1_000_000) {
   }
 }
 
+async function parseImageBody(request, maxBytes = 700_000) {
+  if (Buffer.isBuffer(request.body)) return request.body;
+  if (request.body instanceof Uint8Array) return Buffer.from(request.body);
+  if (request.body instanceof ArrayBuffer) return Buffer.from(request.body);
+  if (typeof request.body === 'string') return Buffer.from(request.body, 'binary');
+  if (request.body !== undefined && request.body !== null) {
+    throw Object.assign(new Error('Invalid image body'), { statusCode: 400 });
+  }
+  const chunks = [];
+  let size = 0;
+  for await (const chunk of request) {
+    size += chunk.length;
+    if (size > maxBytes) throw Object.assign(new Error('Request body too large'), { statusCode: 413 });
+    chunks.push(chunk);
+  }
+  return Buffer.concat(chunks, size);
+}
+
 function sessionSecret() {
   const secret = process.env.APP_SESSION_SECRET;
   if (!secret || Buffer.byteLength(secret) < 32) {
@@ -181,6 +199,9 @@ async function supabaseStorageRequest(path, options = {}) {
     const errorCode = typeof detail.error === 'string' ? detail.error : '';
     console.error('Supabase Storage request failed', { status: response.status, error: errorCode });
     if (response.status === 404) {
+      if (options.method === 'GET' && path.startsWith(`/object/${photoBucket}/`)) {
+        throw Object.assign(new Error('Calf photo is missing'), { statusCode: 404 });
+      }
       throw Object.assign(new Error('Supabase Storage bucket is missing'), {
         publicMessage: 'O bucket animal-photos não existe. Execute novamente supabase/schema.sql no SQL Editor do Supabase.'
       });
@@ -214,7 +235,7 @@ async function getCalfData(id) {
 function sendPhoto(response, image) {
   response.statusCode = 200;
   response.setHeader('Content-Type', 'image/jpeg');
-  response.setHeader('Cache-Control', 'private, no-store');
+  response.setHeader('Cache-Control', 'private, max-age=86400, immutable');
   response.setHeader('X-Content-Type-Options', 'nosniff');
   response.end(Buffer.from(image));
 }
@@ -276,18 +297,17 @@ export default async function handler(request, response) {
       if (!validCalfId(calfId) || !calfPhotoKinds.has(kind)) {
         return send(response, 400, { error: 'Identificação da foto inválida.' });
       }
-      const data = await getCalfData(calfId);
-      if (!data) return send(response, 404, { error: 'Bezerro não encontrado.' });
       const field = kind === 'animal' ? 'photoAnimal' : 'photoTag';
       const key = calfPhotoKey(calfId, kind);
 
       if (request.method === 'POST') {
-        const body = await parseBody(request, 1_000_000);
-        if (typeof body.image !== 'string' || !/^[A-Za-z0-9+/]+={0,2}$/.test(body.image)) {
+        const data = await getCalfData(calfId);
+        if (!data) return send(response, 404, { error: 'Bezerro não encontrado.' });
+        if (request.headers['content-type'] !== 'image/jpeg') {
           return send(response, 400, { error: 'A imagem enviada é inválida.' });
         }
-        const image = Buffer.from(body.image, 'base64');
-        if (!image.length || image.length > 700_000 || image.toString('base64') !== body.image) {
+        const image = await parseImageBody(request);
+        if (!image.length || image.length > 700_000) {
           return send(response, 413, { error: 'A foto excede o limite de tamanho. Tente capturar uma imagem menor.' });
         }
         const signature = image.subarray(0, 3).toString('hex');
@@ -298,17 +318,11 @@ export default async function handler(request, response) {
           headers: { 'Content-Type': 'image/jpeg', 'x-upsert': 'true' },
           body: image
         });
-        const updatedData = { ...data, [field]: true };
-        await supabaseRequest('?on_conflict=collection%2Cid', {
-          method: 'POST',
-          headers: { Prefer: 'resolution=merge-duplicates,return=minimal' },
-          body: JSON.stringify({ collection: 'bezerros', id: calfId, data: updatedData })
-        });
-        return send(response, 200, { saved: true, field });
+        const version = randomUUID();
+        return send(response, 200, { saved: true, field, version });
       }
 
       if (request.method === 'GET') {
-        if (data[field] !== true) return send(response, 404, { error: 'Foto não cadastrada.' });
         const encodedKey = key.split('/').map(encodeURIComponent).join('/');
         const photo = await supabaseStorageRequest(`/object/${photoBucket}/${encodedKey}`);
         const image = Buffer.from(await photo.arrayBuffer());
@@ -370,7 +384,7 @@ export default async function handler(request, response) {
     return send(response, 404, { error: 'Rota não encontrada.' });
   } catch (error) {
     console.error('API request failed:', error);
-    if (error.statusCode) return send(response, error.statusCode, { error: error.statusCode === 413 ? 'A solicitação excedeu o limite permitido.' : 'Solicitação inválida.' });
+    if (error.statusCode) return send(response, error.statusCode, { error: error.statusCode === 413 ? 'A solicitação excedeu o limite permitido.' : error.statusCode === 404 ? 'Foto não cadastrada.' : 'Solicitação inválida.' });
     if (error.publicMessage) return send(response, 500, { error: error.publicMessage });
     const message = error.publicMessage || (error.message.includes('environment variables') || error.message.includes('APP_SESSION_SECRET')
       || error.message.includes('APP_PASSWORD')
