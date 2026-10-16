@@ -20,6 +20,12 @@ body{margin:0;background:var(--bg);color:var(--tx);font:15px/1.4 system-ui,-appl
 .nav-item:hover,.nav-item.is-active{background:#3a5368;color:#fff}
 .nav-item.is-active{font-weight:650}
 .nav-icon{width:20px;text-align:center;font-size:16px}
+.nav-group{display:flex;flex-direction:column;gap:2px}
+.nav-chevron{margin-left:auto;transition:transform .2s}
+.nav-toggle[aria-expanded="true"] .nav-chevron{transform:rotate(90deg)}
+.nav-submenu{display:flex;flex-direction:column;gap:2px;padding-left:14px}
+.nav-submenu[hidden]{display:none}
+.nav-subitem{font-size:14px;padding:8px 10px}
 .app-main{flex:1;min-width:0;padding:16px}
 main{max-width:1100px;margin:0 auto;padding:0}
 h1{font-size:22px;margin:0}
@@ -94,6 +100,9 @@ input,select{flex:1 1 130px}
   .sidebar-brand{font-size:15px}
   .side-nav{flex-direction:row;gap:5px;overflow-x:auto;padding-bottom:2px}
   .nav-item{width:auto;flex:none;white-space:nowrap;padding:9px}
+  .nav-group{position:relative;flex:none}
+  .nav-submenu{position:static;flex-direction:row;min-width:0;padding:0;background:transparent;border:0;border-radius:0;box-shadow:none}
+  .nav-subitem{width:100%}
   .app-main{padding:12px}
   .page-header{align-items:flex-start}
   h1{font-size:20px}
@@ -108,7 +117,13 @@ input,select{flex:1 1 130px}
       <button class="nav-item is-active" type="button" data-view="dashboard" aria-current="page"><span class="nav-icon" aria-hidden="true">▦</span>DASHBOARD</button>
     <button class="nav-item" type="button" data-view="movements"><span class="nav-icon" aria-hidden="true">↕</span>Lançamentos</button>
     <button class="nav-item" type="button" data-view="finance"><span class="nav-icon" aria-hidden="true">$</span>Financeiro</button>
-    <button class="nav-item" type="button" data-view="livestock"><span class="nav-icon" aria-hidden="true">🐄</span>Pecuária</button>
+    <div class="nav-group">
+      <button class="nav-item nav-toggle" type="button" data-menu-toggle="livestock" aria-expanded="false" aria-controls="livestockSubmenu"><span class="nav-icon" aria-hidden="true">🐄</span>Agropecuária<span class="nav-chevron" aria-hidden="true">›</span></button>
+      <div class="nav-submenu" id="livestockSubmenu" hidden>
+        <button class="nav-item nav-subitem" type="button" data-view="cows">Vacas</button>
+        <button class="nav-item nav-subitem" type="button" data-view="calves">Bezerros</button>
+      </div>
+    </div>
   </nav>
 </aside>
 <div class="app-main">
@@ -161,7 +176,7 @@ input,select{flex:1 1 130px}
 </div>
 </section>
 
-<section class="workspace-view" id="view-livestock" data-view-panel="livestock" hidden>
+<section class="workspace-view" id="view-cows" data-view-panel="cows" hidden>
 <div class="card" id="cowCard">
   <div class="top"><h2>🐄 Vacas: cio e parto</h2><b id="cowCount"></b></div>
   <div id="cowForm">
@@ -186,6 +201,9 @@ input,select{flex:1 1 130px}
   </div>
   <div id="cows" style="margin-top:8px"></div>
 </div>
+</section>
+
+<section class="workspace-view" id="view-calves" data-view-panel="calves" hidden>
 <div class="card" id="calfCard">
   <div class="top"><h2>🐮 Bezerros</h2><b id="calfCount"></b></div>
   <div id="calfForm">
@@ -231,20 +249,33 @@ input,select{flex:1 1 130px}
 
 <script>
 const $=id=>document.getElementById(id);
-const viewTitles={dashboard:'DASHBOARD',movements:'Lançamentos',finance:'Financeiro',livestock:'Pecuária'};
+const viewTitles={dashboard:'DASHBOARD',movements:'Lançamentos',finance:'Financeiro',cows:'Vacas: cio e parto',calves:'Bezerros'};
 function selectView(view){
   if(!viewTitles[view])return;
   document.querySelectorAll('[data-view-panel]').forEach(panel=>{panel.hidden=panel.dataset.viewPanel!==view});
-  document.querySelectorAll('.nav-item').forEach(button=>{
+  document.querySelectorAll('.nav-item[data-view]').forEach(button=>{
     const active=button.dataset.view===view;
     button.classList.toggle('is-active',active);
     if(active)button.setAttribute('aria-current','page');
     else button.removeAttribute('aria-current');
   });
+  const livestockSelected=view==='cows'||view==='calves';
+  const livestockToggle=document.querySelector('[data-menu-toggle="livestock"]');
+  const livestockSubmenu=$('livestockSubmenu');
+  livestockToggle.classList.toggle('is-active',livestockSelected);
+  livestockToggle.setAttribute('aria-expanded',String(livestockSelected));
+  livestockSubmenu.hidden=!livestockSelected;
   $('viewTitle').textContent=viewTitles[view];
 }
 document.querySelector('.side-nav').addEventListener('click',event=>{
-  const button=event.target.closest('.nav-item');
+  const toggle=event.target.closest('[data-menu-toggle="livestock"]');
+  if(toggle){
+    const expanded=toggle.getAttribute('aria-expanded')==='true';
+    toggle.setAttribute('aria-expanded',String(!expanded));
+    $('livestockSubmenu').hidden=expanded;
+    return;
+  }
+  const button=event.target.closest('.nav-item[data-view]');
   if(button)selectView(button.dataset.view);
 });
 const brl=n=>n.toLocaleString('pt-BR',{style:'currency',currency:'BRL'});
