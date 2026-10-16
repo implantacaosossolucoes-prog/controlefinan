@@ -111,7 +111,7 @@ input,select{flex:1 1 130px}
 #badd,#cadd,#calfAdd{width:100%;background:var(--ac);color:#fff;border-color:var(--ac);font-weight:600;cursor:pointer}
 .bill{display:flex;align-items:center;gap:8px;padding:10px 0;border-top:1px solid var(--bd)}
 .bill .d{flex:1;min-width:0}
-.bill .d div{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.bill .d>div:first-child{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .bill small{color:var(--mut)}
 .bill small.late{color:var(--out);font-weight:600}
 .bill .v{font-weight:700;white-space:nowrap}
@@ -141,6 +141,21 @@ input,select{flex:1 1 130px}
   .item-actions{flex-direction:column}
   .toolbar input,.toolbar select{flex-basis:100%}
   h1{font-size:20px}
+  #calfForm .row{display:grid;grid-template-columns:minmax(0,1fr)}
+  .photo-fields{display:grid;grid-template-columns:repeat(2,minmax(0,1fr))}
+  .photo-field{position:relative;display:flex;align-items:center;justify-content:center;min-height:76px;padding:8px;border:1px dashed var(--bd);border-radius:10px;background:var(--bg);text-align:center;font-weight:600;cursor:pointer}
+  .photo-field span small{display:block;margin-top:3px;color:var(--mut);font-size:11px;font-weight:400}
+  .photo-field input{position:absolute;inset:0;width:100%;height:100%;margin:0;opacity:0;cursor:pointer}
+  .photo-field:focus-within{outline:2px solid var(--ac);outline-offset:2px}
+  .calf-record{flex-direction:column;align-items:stretch;gap:10px}
+  .calf-record .d>div:first-child{white-space:normal}
+  .calf-photos{display:grid;grid-template-columns:repeat(2,minmax(0,1fr))}
+  .calf-photo-item{min-width:0;margin:0}
+  .calf-photo{display:block;width:100%;height:auto;aspect-ratio:4/3;object-fit:contain}
+  .calf-photo-item figcaption{margin-top:4px;color:var(--mut);font-size:12px}
+  .calf-photo-actions{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:6px;margin-left:0}
+  .calf-photo-actions .photo-action{min-height:42px;line-height:1.25}
+  .calf-photo-actions .x{min-height:42px}
 }
 </style>
 </head>
@@ -275,10 +290,10 @@ input,select{flex:1 1 130px}
       <input id="calfTag" placeholder="Número do brinco">
     </div>
     <div class="photo-fields">
-      <label class="photo-field">Foto do bezerro
+      <label class="photo-field"><span>📷 Foto do bezerro<small>Toque para abrir a câmera ou galeria</small></span>
         <input id="calfAnimalPhoto" type="file" accept="image/*" capture="environment">
       </label>
-      <label class="photo-field">Foto do brinco
+      <label class="photo-field"><span>📷 Foto do brinco<small>Toque para abrir a câmera ou galeria</small></span>
         <input id="calfTagPhoto" type="file" accept="image/*" capture="environment">
       </label>
     </div>
@@ -547,7 +562,7 @@ function renderCalves(){
   const query=$('calfSearch').value.trim().toLocaleLowerCase();
   const ordered=[...calves].filter(c=>!query||(c.descricao||'').toLocaleLowerCase().includes(query)||(c.brinco||'').toLocaleLowerCase().includes(query)).sort((a,b)=>b.nascimento.localeCompare(a.nascimento));
   $('calfCount').textContent=calves.length?calves.length+(calves.length===1?' bezerro':' bezerros'):'';
-  $('calves').innerHTML=ordered.length?ordered.map(c=>`<div class="bill"><div class="d"><div>🐮 ${esc(c.descricao||'(sem descrição)')}</div><small>Nascimento: ${dd(c.nascimento)} · Brinco: ${esc(c.brinco||'(não informado)')}</small>${c.photoAnimal||c.photoTag?`<div class="calf-photos">${c.photoAnimal?`<img class="calf-photo" src="/api/calf-photos?calfId=${encodeURIComponent(c.id)}&kind=animal" alt="Foto de ${esc(c.descricao||'bezerro')}">`:''}${c.photoTag?`<img class="calf-photo" src="/api/calf-photos?calfId=${encodeURIComponent(c.id)}&kind=tag" alt="Foto do brinco ${esc(c.brinco||'')}">`:''}</div>`:''}</div>${canWrite?`<div class="calf-photo-actions"><button class="photo-action secondary-button" data-photo-kind="animal" data-id="${c.id}">${c.photoAnimal?'Trocar':'Adicionar'} foto do bezerro</button><button class="photo-action secondary-button" data-photo-kind="tag" data-id="${c.id}">${c.photoTag?'Trocar':'Adicionar'} foto do brinco</button><button class="record-edit x" data-id="${c.id}" title="Editar bezerro" aria-label="Editar bezerro">✎</button><button class="calf-remove x" data-id="${c.id}" title="Remover">✕</button></div>`:''}</div>`).join(''):'<div class="empty">'+(calves.length?'Nenhum bezerro corresponde à busca.':'Nenhum bezerro registrado.')+'</div>';
+  $('calves').innerHTML=ordered.length?ordered.map(c=>`<div class="bill calf-record"><div class="d"><div>🐮 ${esc(c.descricao||'(sem descrição)')}</div><small>Nascimento: ${dd(c.nascimento)} · Brinco: ${esc(c.brinco||'(não informado)')}</small>${c.photoAnimal||c.photoTag?`<div class="calf-photos">${c.photoAnimal?`<figure class="calf-photo-item"><img class="calf-photo" src="/api/calf-photos?calfId=${encodeURIComponent(c.id)}&kind=animal" alt="Foto de ${esc(c.descricao||'bezerro')}"><figcaption>Foto do bezerro</figcaption></figure>`:''}${c.photoTag?`<figure class="calf-photo-item"><img class="calf-photo" src="/api/calf-photos?calfId=${encodeURIComponent(c.id)}&kind=tag" alt="Foto do brinco ${esc(c.brinco||'')}"><figcaption>Foto do brinco</figcaption></figure>`:''}</div>`:''}</div>${canWrite?`<div class="calf-photo-actions"><button class="photo-action secondary-button" data-photo-kind="animal" data-id="${c.id}">${c.photoAnimal?'Trocar':'Adicionar'} foto do bezerro</button><button class="photo-action secondary-button" data-photo-kind="tag" data-id="${c.id}">${c.photoTag?'Trocar':'Adicionar'} foto do brinco</button><button class="record-edit x" data-id="${c.id}" title="Editar bezerro" aria-label="Editar bezerro">✎</button><button class="calf-remove x" data-id="${c.id}" title="Remover">✕</button></div>`:''}</div>`).join(''):'<div class="empty">'+(calves.length?'Nenhum bezerro corresponde à busca.':'Nenhum bezerro registrado.')+'</div>';
   renderAlerts();
 }
 $('cowSearch').oninput=renderCows;
