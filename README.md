@@ -22,6 +22,10 @@ Importe o repositório no Vercel e mantenha a pasta raiz do projeto como **Root 
 
 Configure nessas variáveis as senhas que os usuários já utilizam. Depois de salvar as variáveis, faça um novo deploy. Os dois usuários acessam o mesmo conjunto de dados. As senhas são verificadas no servidor e a sessão usa um cookie `HttpOnly`; não são gravadas no banco nem no navegador.
 
+## Ícone no celular
+
+O atalho instalado usa `icon-192.png` (192 × 192), `icon-512.png` (512 × 512) e `apple-touch-icon.png` (180 × 180). Para trocar a imagem, substitua `logo.png` (usada dentro do app) e esses três arquivos por versões da nova logo, mantendo os nomes, formatos PNG e dimensões. Publique a atualização e, no celular, remova o atalho antigo e adicione o app à tela inicial novamente para atualizar o ícone em cache.
+
 ## Dados que já estavam neste navegador
 
 Ao entrar após a configuração, o app tenta migrar para o Supabase os lançamentos, contas, vacas, bezerros e saldo que ainda estejam no armazenamento local antigo daquele navegador. Faça login em cada dispositivo usado no teste para migrar os dados locais de cada um. As antigas senhas salvas somente no navegador não são migradas: use as senhas configuradas no Vercel.

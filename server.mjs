@@ -15,6 +15,17 @@ const server = createServer((request, response) => {
     void (demoMode ? devApiHandler : apiHandler)(request, response);
     return;
   }
+  if (request.method === 'GET' && pathname === '/site.webmanifest') {
+    response.writeHead(200, { 'Content-Type': 'application/manifest+json; charset=utf-8', 'Cache-Control': 'public, max-age=86400' });
+    createReadStream(`${root}site.webmanifest`).pipe(response);
+    return;
+  }
+  if (request.method === 'GET' && ['/icon-192.png', '/icon-512.png', '/apple-touch-icon.png'].includes(pathname)) {
+    const icon = pathname.slice(1);
+    response.writeHead(200, { 'Content-Type': 'image/png', 'Cache-Control': 'public, max-age=86400' });
+    createReadStream(`${root}${icon}`).pipe(response);
+    return;
+  }
   if (request.method === 'GET' && pathname === '/logo.png') {
     response.writeHead(200, { 'Content-Type': 'image/png', 'Cache-Control': 'public, max-age=86400' });
     createReadStream(`${root}logo.png`).pipe(response);
