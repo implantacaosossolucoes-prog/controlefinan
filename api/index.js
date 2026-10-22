@@ -1,4 +1,5 @@
 import { createHmac, timingSafeEqual, randomUUID } from 'node:crypto';
+import { validRecordId, validateRecordData, validateRestoreRecords } from '../shared/data.js';
 
 const collections = new Set(['config', 'lancamentos', 'contas', 'vacas', 'bezerros']);
 const cookieName = 'cf_session';
@@ -163,7 +164,8 @@ async function supabaseRequest(path, options = {}) {
   if (!key.startsWith('sb_secret_')) {
     headers.Authorization = `Bearer ${key}`;
   }
-  const response = await fetch(`${url}/rest/v1/records${path}`, {
+  const endpoint = path.startsWith('/rpc/') ? `${url}/rest/v1${path}` : `${url}/rest/v1/records${path}`;
+  const response = await fetch(endpoint, {
     ...options,
     headers
   });
@@ -268,6 +270,19 @@ export default async function handler(request, response) {
   const route = params.get('route') || pathname.split('/').filter(Boolean).at(-1);
 
   try {
+    const allowedMethods = {
+      login: ['POST'],
+      logout: ['POST'],
+      session: ['GET'],
+      records: ['GET', 'POST', 'PUT', 'DELETE'],
+      restore: ['POST'],
+      'pay-bill': ['POST'],
+      'calf-photos': ['GET', 'POST']
+    };
+    if (allowedMethods[route] && !allowedMethods[route].includes(request.method)) {
+      return send(response, 405, { error: 'Método não permitido.' }, { Allow: allowedMethods[route].join(', ') });
+    }
+
     if (request.method === 'POST' && route === 'login') {
       sessionSecret();
       getSupabaseConfig();
@@ -298,6 +313,45 @@ export default async function handler(request, response) {
 
     const session = getSession(request);
     if (!session) return send(response, 401, { error: 'Sua sessão expirou. Entre novamente.' });
+
+    if (route === 'restore') {
+      const body = await parseBody(request, 4_000_000);
+      let records;
+      try {
+        records = validateRestoreRecords(body.records);
+      } catch {
+        return send(response, 400, { error: 'O backup contém registros inválidos ou identificadores duplicados.' });
+      }
+      await supabaseRequest('/rpc/restore_records', {
+        method: 'POST',
+        headers: { Prefer: 'return=minimal' },
+        body: JSON.stringify({ p_records: records })
+      });
+      return send(response, 200, { restored: records.length });
+    }
+
+    if (route === 'pay-bill') {
+      const body = await parseBody(request);
+      const { id, who, date } = body;
+      const movementId = randomUUID();
+      if (!validRecordId(id)
+        || validateRecordData('lancamentos', movementId, {
+          type: 'out', value: 1, desc: '', cat: 'Contas a pagar', date, who
+        })) {
+        return send(response, 400, { error: 'Dados de pagamento inválidos.' });
+      }
+      await supabaseRequest('/rpc/pay_bill', {
+        method: 'POST',
+        headers: { Prefer: 'return=minimal' },
+        body: JSON.stringify({
+          p_bill_id: id,
+          p_movement_id: movementId,
+          p_who: who,
+          p_date: date
+        })
+      });
+      return send(response, 200, { id: movementId });
+    }
 
     if (route === 'calf-photos') {
       const calfId = params.get('calfId');
@@ -331,6 +385,8 @@ export default async function handler(request, response) {
       }
 
       if (request.method === 'GET') {
+        const data = await getCalfData(calfId);
+        if (!data || !data[field]) return send(response, 404, { error: 'Foto não cadastrada.' });
         const encodedKey = key.split('/').map(encodeURIComponent).join('/');
         const photo = await supabaseStorageRequest(`/object/${photoBucket}/${encodedKey}`);
         const image = Buffer.from(await photo.arrayBuffer());
@@ -355,8 +411,8 @@ export default async function handler(request, response) {
     if (request.method === 'POST' && route === 'records') {
       if (!validCollection(collection)) return send(response, 400, { error: 'Coleção inválida.' });
       const { data } = body;
-      if (!data || typeof data !== 'object' || Array.isArray(data)) return send(response, 400, { error: 'Registro inválido.' });
       const newId = randomUUID();
+      if (validateRecordData(collection, newId, data)) return send(response, 400, { error: 'Registro inválido.' });
       await supabaseRequest('', {
         method: 'POST',
         headers: { Prefer: 'return=minimal' },
@@ -368,7 +424,7 @@ export default async function handler(request, response) {
     if (request.method === 'PUT' && route === 'records') {
       if (!validCollection(collection)) return send(response, 400, { error: 'Coleção inválida.' });
       const { data } = body;
-      if (!id || !data || typeof data !== 'object' || Array.isArray(data)) {
+      if (validateRecordData(collection, id, data)) {
         return send(response, 400, { error: 'Registro inválido.' });
       }
       const query = new URLSearchParams({ on_conflict: 'collection,id' });
@@ -382,13 +438,16 @@ export default async function handler(request, response) {
 
     if (request.method === 'DELETE' && route === 'records') {
       if (!validCollection(collection)) return send(response, 400, { error: 'Coleção inválida.' });
-      if (!id) return send(response, 400, { error: 'Registro inválido.' });
+      if (!validRecordId(id)) {
+        return send(response, 400, { error: 'Registro inválido.' });
+      }
       if (collection === 'bezerros' && validCalfId(id)) await removeCalfPhotos(id);
       const query = new URLSearchParams({ collection: `eq.${collection}`, id: `eq.${id}` });
       await supabaseRequest(`?${query}`, { method: 'DELETE', headers: { Prefer: 'return=minimal' } });
       return send(response, 200, { ok: true });
     }
 
+    if (route === 'records') return send(response, 405, { error: 'Método não permitido.' }, { Allow: 'GET, POST, PUT, DELETE' });
     return send(response, 404, { error: 'Rota não encontrada.' });
   } catch (error) {
     console.error('API request failed:', error);

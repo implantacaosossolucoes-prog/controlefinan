@@ -11,8 +11,22 @@ const demoMode = process.argv.includes('--demo');
 
 const server = createServer((request, response) => {
   const pathname = new URL(request.url, 'http://localhost').pathname;
+  if (request.method === 'GET' && pathname === '/Controle%20Financeiro.html') {
+    response.writeHead(308, { Location: '/', 'Cache-Control': 'public, max-age=3600' });
+    response.end();
+    return;
+  }
   if (pathname.startsWith('/api/')) {
     void (demoMode ? devApiHandler : apiHandler)(request, response);
+    return;
+  }
+  if (request.method === 'GET' && pathname === '/shared/data.js') {
+    response.writeHead(200, {
+      'Content-Type': 'text/javascript; charset=utf-8',
+      'Cache-Control': 'public, max-age=300',
+      'X-Content-Type-Options': 'nosniff'
+    });
+    createReadStream(`${root}shared/data.js`).pipe(response);
     return;
   }
   if (request.method === 'GET' && pathname === '/site.webmanifest') {

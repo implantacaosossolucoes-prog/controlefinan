@@ -388,7 +388,9 @@ button:disabled{cursor:wait;opacity:.6}
 </div></div>
 <div id="toast"></div>
 
-<script>
+<script type="module">
+import { buildCsv, calculateFinance, prepareBackup } from '/shared/data.js';
+
 const $=id=>document.getElementById(id);
 const viewTitles={dashboard:'Dashboard',movements:'Lançamentos',finance:'Financeiro',cows:'Vacas: cio e parto',calves:'Bezerros'};
 function selectView(view){
@@ -473,31 +475,14 @@ function render(){
   const query=$('movementSearch').value.trim().toLocaleLowerCase();
   const list=monthItems.filter(i=>!query||[i.desc,i.cat,i.who].some(value=>(value||'').toLocaleLowerCase().includes(query))).sort((a,b)=>(b.date||'').localeCompare(a.date||'')||(b.ts||0)-(a.ts||0));
   const dashboardMonth=$('dashboardMonth').value;
-  const periodItems=items.filter(i=>!dashboardMonth||(typeof i.date==='string'&&i.date.startsWith(dashboardMonth)));
-  let tin=0,tout=0;const cats={};
-  periodItems.forEach(i=>{
-    if(!Number.isFinite(i.value))return;
-    if(i.type==='in')tin+=i.value;
-    else if(i.type==='out'){tout+=i.value;cats[i.cat||'Outros']=(cats[i.cat||'Outros']||0)+i.value}
-  });
-  $('sIn').textContent=brl(tin);$('sOut').textContent=brl(tout);
-  const periodBalance=tin-tout;
-  $('sPeriodBal').textContent=brl(periodBalance);$('sPeriodBal').className=periodBalance>=0?'in':'out';
-  const bal=initial+items.reduce((a,i)=>a+(Number.isFinite(i.value)?i.type==='in'?i.value:i.type==='out'?-i.value:0:0),0);$('sBal').textContent=brl(bal);$('sBal').className=bal>=0?'in':'out';
-  const ce=Object.entries(cats).sort((a,b)=>b[1]-a[1]);
+  const finance=calculateFinance(initial,items,dashboardMonth);
+  $('sIn').textContent=brl(finance.income);$('sOut').textContent=brl(finance.expenses);
+  $('sPeriodBal').textContent=brl(finance.periodBalance);$('sPeriodBal').className=finance.periodBalance>=0?'in':'out';
+  $('sBal').textContent=brl(finance.accumulated);$('sBal').className=finance.accumulated>=0?'in':'out';
+  const ce=Object.entries(finance.categories).sort((a,b)=>b[1]-a[1]);
   $('catCard').hidden=!ce.length;
   $('bars').innerHTML=ce.map(([k,v])=>`<div class="bar"><span>${esc(k)}</span><i style="width:${Math.max(4,v/ce[0][1]*55)}%"></i><span>${brl(v)}</span></div>`).join('');
-  const [anchorYear,anchorMonth]=dashboardMonth?dashboardMonth.split('-').map(Number):[new Date().getFullYear(),new Date().getMonth()+1];
-  const trendMonths=Array.from({length:6},(_,index)=>{
-    const date=new Date(anchorYear,anchorMonth-1-(5-index),1);
-    return {key:iso(date).slice(0,7),date,balance:0};
-  });
-  const trendByMonth=new Map(trendMonths.map(month=>[month.key,month]));
-  items.forEach(item=>{
-    if(!validDate(item.date)||!Number.isFinite(item.value)||!['in','out'].includes(item.type))return;
-    const month=trendByMonth.get(item.date.slice(0,7));
-    if(month)month.balance+=item.type==='in'?item.value:-item.value;
-  });
+  const trendMonths=finance.trend;
   const maxTrend=Math.max(1,...trendMonths.map(month=>Math.abs(month.balance)));
   $('dashboardTrend').innerHTML=trendMonths.map(month=>{
     const width=Math.abs(month.balance)/maxTrend*50;
@@ -508,13 +493,13 @@ function render(){
   $('list').innerHTML=list.length?list.map(i=>{
     const [y,mo,d]=validDate(i.date)?i.date.split('-'):['','','Data inválida'];
     const typeClass=i.type==='in'?'in':'out';
-    return `<div class="item"><div class="d"><div>${esc(i.desc||'(sem descrição)')}</div><small>${d}/${mo}/${y}${i.cat?' · '+esc(i.cat):''}${i.who?' · '+esc(i.who):''}</small></div><div class="v ${typeClass}">${i.type==='in'?'+':'−'} ${brl(Number.isFinite(i.value)?i.value:0)}</div>${canWrite?`<div class="item-actions"><button class="record-edit x" data-id="${i.id}" title="Editar lançamento" aria-label="Editar lançamento">✎</button><button class="delete-record x" data-id="${i.id}" title="Excluir lançamento" aria-label="Excluir lançamento">✕</button></div>`:''}</div>`}).join(''):'<div class="empty">'+(query?'Nenhum lançamento corresponde à busca.':'Nenhum lançamento neste mês.')+'</div>';
+    return `<div class="item"><div class="d"><div>${esc(i.desc||'(sem descrição)')}</div><small>${d}/${mo}/${y}${i.cat?' · '+esc(i.cat):''}${i.who?' · '+esc(i.who):''}</small></div><div class="v ${typeClass}">${i.type==='in'?'+':'−'} ${brl(Number.isFinite(i.value)?i.value:0)}</div>${canWrite?`<div class="item-actions"><button class="record-edit x" data-id="${esc(i.id)}" title="Editar lançamento" aria-label="Editar lançamento">✎</button><button class="delete-record x" data-id="${esc(i.id)}" title="Excluir lançamento" aria-label="Excluir lançamento">✕</button></div>`:''}</div>`}).join(''):'<div class="empty">'+(query?'Nenhum lançamento corresponde à busca.':'Nenhum lançamento neste mês.')+'</div>';
 }
 $('month').onchange=render;
 $('movementSearch').oninput=render;
 $('clearMovementFilters').onclick=()=>{$('month').value='';$('movementSearch').value='';render()};
 let bills=[],barmed=null;
-const dd=s=>{const [y,m,d]=s.split('-');return d+'/'+m+'/'+y};
+const dd=s=>{const [y,m,d]=String(s||'').split('-');return `${esc(d)}/${esc(m)}/${esc(y)}`};
 function renderBills(){
   const t=iso(new Date());
   const l=[...bills].sort((a,b)=>a.due.localeCompare(b.due));
@@ -535,7 +520,7 @@ function renderBills(){
   $('bills').innerHTML=visible.length?visible.map(b=>{
     const late=b.due<=t;
     const st=b.due<t?'Vencida em '+dd(b.due):b.due===t?'Vence hoje':'Vence em '+dd(b.due);
-    return `<div class="bill"><div class="d"><div>${esc(b.desc||'(sem descrição)')}</div><small class="${late?'late':''}">${st}</small></div><div class="v out">${brl(b.value)}</div>${canWrite?`<button class="pay" data-id="${b.id}">Pagar</button><button class="record-edit x" data-id="${b.id}" title="Editar conta" aria-label="Editar conta">✎</button><button class="bx x" data-id="${b.id}" title="Excluir">✕</button>`:''}</div>`}).join(''):'<div class="empty">'+(l.length?'Nenhuma conta corresponde aos filtros.':'Nenhuma conta pendente.')+'</div>';
+    return `<div class="bill"><div class="d"><div>${esc(b.desc||'(sem descrição)')}</div><small class="${late?'late':''}">${st}</small></div><div class="v out">${brl(b.value)}</div>${canWrite?`<button class="pay" data-id="${esc(b.id)}">Pagar</button><button class="record-edit x" data-id="${esc(b.id)}" title="Editar conta" aria-label="Editar conta">✎</button><button class="bx x" data-id="${esc(b.id)}" title="Excluir">✕</button>`:''}</div>`}).join(''):'<div class="empty">'+(l.length?'Nenhuma conta corresponde aos filtros.':'Nenhuma conta pendente.')+'</div>';
   renderAlerts();
 }
  $('billSearch').oninput=renderBills;
@@ -566,11 +551,15 @@ $('bills').onclick=async e=>{
   }
   const bill=bills.find(x=>x.id===b.dataset.id);
   try{
-    if(b.classList.contains('pay')&&bill){
-      await db.collection('lancamentos').add({type:'out',value:bill.value,desc:bill.desc,cat:'Contas a pagar',date:iso(new Date()),who:$('who').value.trim(),ts:Date.now()});
+    if(b.classList.contains('pay')){
+      if(!bill)throw new Error('A conta não está mais disponível.');
+      await apiRequest('/api/pay-bill',{
+        method:'POST',
+        body:JSON.stringify({id:bill.id,who:$('who').value.trim(),date:iso(new Date())})
+      });
+      await db.refresh();
       toast('✅ Saída lançada: '+brl(bill.value),'#dc2626');
-    }
-    await db.collection('contas').doc(b.dataset.id).delete();
+    }else await db.collection('contas').doc(b.dataset.id).delete();
     barmed=null;note('');
     if(b.classList.contains('bx'))toast('✅ Conta excluída.','#15803d');
   }catch(err){note('Não foi possível concluir a operação: '+err.message)}
@@ -590,7 +579,7 @@ function renderCows(){
     const dryDays=Math.round((new Date(dryOff+'T00:00:00')-new Date(t+'T00:00:00'))/864e5);
     const dryStatus=n<0?'Data prevista de parto passou':dryDays>1?'Secar em '+dryDays+' dias':dryDays===1?'Secar amanhã':dryDays===0?'Secar hoje':'Secagem atrasada há '+(-dryDays)+((-dryDays)===1?' dia':' dias');
     const dryClass=n>=0&&dryDays<=0?'late':'';
-    return `<div class="bill"><div class="d"><div>🐄 ${esc(c.nome||'(sem nome)')}</div><small>Cio: ${dd(c.cio)} · Parto previsto: <b>${dd(c.parto)}</b></small><br><small class="${n<=30?'late':''}">${st}</small><br><small class="${dryClass}">Secagem: ${dd(dryOff)} · ${dryStatus}</small></div>${canWrite?`<button class="record-edit x" data-id="${c.id}" title="Editar vaca" aria-label="Editar vaca">✎</button><button class="cx x" data-id="${c.id}" title="Remover">✕</button>`:''}</div>`}).join(''):'<div class="empty">'+(cows.length?'Nenhuma vaca corresponde aos filtros.':'Nenhuma vaca registrada.')+'</div>';
+    return `<div class="bill"><div class="d"><div>🐄 ${esc(c.nome||'(sem nome)')}</div><small>Cio: ${dd(c.cio)} · Parto previsto: <b>${dd(c.parto)}</b></small><br><small class="${n<=30?'late':''}">${st}</small><br><small class="${dryClass}">Secagem: ${dd(dryOff)} · ${dryStatus}</small></div>${canWrite?`<button class="record-edit x" data-id="${esc(c.id)}" title="Editar vaca" aria-label="Editar vaca">✎</button><button class="cx x" data-id="${esc(c.id)}" title="Remover">✕</button>`:''}</div>`}).join(''):'<div class="empty">'+(cows.length?'Nenhuma vaca corresponde aos filtros.':'Nenhuma vaca registrada.')+'</div>';
   renderAlerts();
 }
 $('cdate').value=iso(new Date());
@@ -651,7 +640,7 @@ function renderCalves(){
   const query=$('calfSearch').value.trim().toLocaleLowerCase();
   const ordered=[...calves].filter(c=>!query||(c.descricao||'').toLocaleLowerCase().includes(query)||(c.brinco||'').toLocaleLowerCase().includes(query)).sort((a,b)=>b.nascimento.localeCompare(a.nascimento));
   $('calfCount').textContent=calves.length?calves.length+(calves.length===1?' bezerro':' bezerros'):'';
-  $('calves').innerHTML=ordered.length?ordered.map(c=>`<div class="bill calf-record"><div class="d"><div>🐮 ${esc(c.descricao||'(sem descrição)')}</div><small>Nascimento: ${dd(c.nascimento)}</small><small>Idade: ${calfAge(c.nascimento)}</small><small>Brinco: ${esc(c.brinco||'(não informado)')}</small>${c.photoAnimal||c.photoTag?`<div class="calf-photos">${c.photoAnimal?calfPhotoMarkup(c,'animal',`Foto de ${c.descricao||'bezerro'}`,'Foto do bezerro'):''}${c.photoTag?calfPhotoMarkup(c,'tag',`Foto do brinco ${c.brinco||''}`,'Foto do brinco'):''}</div>`:''}</div>${canWrite?`<div class="calf-photo-actions"><button class="photo-action secondary-button" data-photo-kind="animal" data-id="${c.id}">${c.photoAnimal?'Trocar':'Adicionar'} foto do bezerro</button><button class="photo-action secondary-button" data-photo-kind="tag" data-id="${c.id}">${c.photoTag?'Trocar':'Adicionar'} foto do brinco</button><button class="record-edit x" data-id="${c.id}" title="Editar bezerro" aria-label="Editar bezerro">✎</button><button class="calf-remove x" data-id="${c.id}" title="Remover">✕</button></div>`:''}</div>`).join(''):'<div class="empty">'+(calves.length?'Nenhum bezerro corresponde à busca.':'Nenhum bezerro registrado.')+'</div>';
+  $('calves').innerHTML=ordered.length?ordered.map(c=>`<div class="bill calf-record"><div class="d"><div>🐮 ${esc(c.descricao||'(sem descrição)')}</div><small>Nascimento: ${dd(c.nascimento)}</small><small>Idade: ${calfAge(c.nascimento)}</small><small>Brinco: ${esc(c.brinco||'(não informado)')}</small>${c.photoAnimal||c.photoTag?`<div class="calf-photos">${c.photoAnimal?calfPhotoMarkup(c,'animal',`Foto de ${c.descricao||'bezerro'}`,'Foto do bezerro'):''}${c.photoTag?calfPhotoMarkup(c,'tag',`Foto do brinco ${c.brinco||''}`,'Foto do brinco'):''}</div>`:''}</div>${canWrite?`<div class="calf-photo-actions"><button class="photo-action secondary-button" data-photo-kind="animal" data-id="${esc(c.id)}">${c.photoAnimal?'Trocar':'Adicionar'} foto do bezerro</button><button class="photo-action secondary-button" data-photo-kind="tag" data-id="${esc(c.id)}">${c.photoTag?'Trocar':'Adicionar'} foto do brinco</button><button class="record-edit x" data-id="${esc(c.id)}" title="Editar bezerro" aria-label="Editar bezerro">✎</button><button class="calf-remove x" data-id="${esc(c.id)}" title="Remover">✕</button></div>`:''}</div>`).join(''):'<div class="empty">'+(calves.length?'Nenhum bezerro corresponde à busca.':'Nenhum bezerro registrado.')+'</div>';
   clearTimeout(calfAgeRefreshTimer);
   const now=new Date(),midnight=new Date(now.getFullYear(),now.getMonth(),now.getDate()+1);
   calfAgeRefreshTimer=setTimeout(renderCalves,midnight-now+1000);
@@ -885,12 +874,7 @@ $('exportCsv').onclick=()=>{
   if(!recordsLoaded){note('Aguarde a sincronização dos dados antes de exportar.');return}
   const columns=['tipo','data','descricao','brinco','categoria','valor','status','responsavel'];
   const rows=allExportRows();
-  const csvCell=(value,isNumeric=false)=>{
-    let text=String(value??'');
-    if(!isNumeric&&/^[\s]*[=+\-@]/.test(text))text="'"+text;
-    return `"${text.replaceAll('"','""')}"`;
-  };
-  const csv=[columns.join(';'),...rows.map(row=>columns.map(key=>csvCell(row[key],key==='valor'&&typeof row[key]==='number')).join(';'))].join('\r\n');
+  const csv=buildCsv(columns,rows);
   downloadFile(`agroback-dados-${iso(new Date())}.csv`,'\uFEFF'+csv,'text/csv;charset=utf-8');
   toast(`✅ CSV exportado (${rows.length} registros).`,'#15803d');
 };
@@ -899,7 +883,9 @@ $('exportBackup').onclick=()=>{
   if(!recordsLoaded){note('Aguarde a sincronização dos dados antes de baixar o backup.');return}
   const collections=Object.fromEntries(backupCollections.map(name=>[name,(name==='lancamentos'?items:name==='contas'?bills:name==='vacas'?cows:calves).map(({id,photoAnimal,photoTag,photoAnimalVersion,photoTagVersion,...data})=>({id,...data}))]));
   collections.config=[{id:'saldo',value:initial}];
-  downloadFile(`agroback-backup-${iso(new Date())}.json`,JSON.stringify({version:1,exportedAt:new Date().toISOString(),collections},null,2),'application/json');
+  const content=JSON.stringify({version:1,exportedAt:new Date().toISOString(),collections},null,2);
+  if(new Blob([content]).size>4_000_000){note('O backup excede o limite de 4 MB para restauração. Exporte os dados em CSV ou reduza o tamanho do conjunto de dados.');return}
+  downloadFile(`agroback-backup-${iso(new Date())}.json`,content,'application/json');
   toast('✅ Backup JSON baixado.','#15803d');
 };
 $('importBackupButton').onclick=()=>{
@@ -911,43 +897,13 @@ $('backupFile').onchange=async e=>{
   const file=e.target.files[0];
   e.target.value='';
   if(!file)return;
-  if(file.size>10_000_000){note('O arquivo de backup excede o limite de 10 MB.');return}
+  if(file.size>4_000_000){note('O arquivo de backup excede o limite de 4 MB.');return}
   try{
-    const backup=JSON.parse(await file.text());
-    if(backup.version!==1||!backup.collections||typeof backup.collections!=='object'||Array.isArray(backup.collections))throw new Error('Formato de backup não reconhecido.');
-    const validCollections=[...backupCollections,'config'];
-    if(Object.keys(backup.collections).some(name=>!validCollections.includes(name)))throw new Error('O backup contém coleções incompatíveis.');
-    const prepared=[];
-    const idsByCollection=new Map();
-    for(const name of validCollections){
-      const entries=backup.collections[name]??[];
-      if(!Array.isArray(entries))throw new Error(`A lista ${name} é inválida.`);
-      for(const record of entries){
-        if(!record||typeof record.id!=='string'||!record.id.trim())throw new Error(`Há um registro sem identificador em ${name}.`);
-        if(!idsByCollection.has(name))idsByCollection.set(name,new Set());
-        if(idsByCollection.get(name).has(record.id))throw new Error(`O identificador ${record.id} aparece mais de uma vez em ${name}.`);
-        idsByCollection.get(name).add(record.id);
-        const {id,...data}=record;
-        if(!data||typeof data!=='object'||Array.isArray(data))throw new Error(`Há um registro inválido em ${name}.`);
-        const valid=name==='config'?Number.isFinite(data.value)
-          :name==='lancamentos'?['in','out'].includes(data.type)&&Number.isFinite(data.value)&&data.value>0&&validDate(data.date)
-          :name==='contas'?typeof data.desc==='string'&&data.desc.trim()&&Number.isFinite(data.value)&&data.value>0&&validDate(data.due)
-          :name==='vacas'?typeof data.nome==='string'&&data.nome.trim()&&validDate(data.cio)&&validDate(data.parto)
-          :typeof data.descricao==='string'&&data.descricao.trim()&&typeof data.brinco==='string'&&data.brinco.trim()&&notFuture(data.nascimento);
-        if(!valid)throw new Error(`O registro ${id} em ${name} tem dados inválidos.`);
-        prepared.push({name,id,data});
-      }
-    }
-    if(!prepared.length)throw new Error('O backup não contém registros para restaurar.');
-    if(!confirm(`Restaurar ${prepared.length} registros? Os registros existentes com o mesmo identificador serão atualizados; os demais dados não serão apagados.`))return;
-    let restored=0;
-    try{
-      for(const record of prepared){
-        await db.collection(record.name).doc(record.id).set(record.data);
-        restored++;
-      }
-    }catch(error){throw new Error(`Falha após restaurar ${restored} de ${prepared.length} registros: ${error.message}`)}
-    toast(`✅ Backup restaurado: ${restored} registros. Atualize a página se necessário.`,'#15803d');
+    const records=prepareBackup(JSON.parse(await file.text()));
+    if(!confirm(`Restaurar ${records.length} registros? Os registros existentes com o mesmo identificador serão atualizados; os demais dados não serão apagados.`))return;
+    await apiRequest('/api/restore',{method:'POST',body:JSON.stringify({records})});
+    await db.refresh();
+    toast(`✅ Backup restaurado: ${records.length} registros.`,'#15803d');
     note('');
   }catch(error){note('Não foi possível restaurar o backup: '+error.message)}
 };
@@ -1094,7 +1050,7 @@ function createSharedDb(){
     void refresh();
     return result;
   };
-  return {collection:name=>{
+  return {refresh,collection:name=>{
     return {
       add:data=>mutate('/api/records',{method:'POST',body:JSON.stringify({collection:name,data})}),
       doc:id=>{
