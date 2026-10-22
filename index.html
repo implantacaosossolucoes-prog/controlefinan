@@ -9,7 +9,7 @@
 <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png">
 <link rel="manifest" href="/site.webmanifest">
 <style>
-:root{--bg:#f6f7f9;--card:#fff;--tx:#1b1f24;--mut:#6b7280;--bd:#e5e7eb;--in:#15803d;--out:a#dc2626;--ac:#2563eb;color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+:root{--bg:#f6f7f9;--card:#fff;--tx:#1b1f24;--mut:#6b7280;--bd:#e5e7eb;--in:#15803d;--out:#dc2626;--ac:#2563eb;color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
 @media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#111418;--card:#1b2027;--tx:#eef0f3;--mut:#9aa3af;--bd:#2c333d;--in:#4ade80;--out:#f87171;--ac:#60a5fa;color-scheme:dark}}
 :root[data-theme="dark"]{--bg:#111418;--card:#1b2027;--tx:#eef0f3;--mut:#9aa3af;--bd:#2c333d;--in:#4ade80;--out:#f87171;--ac:#60a5fa;color-scheme:dark}
 html{scroll-padding-top:env(safe-area-inset-top,0px)}
@@ -38,7 +38,7 @@ h1{font-size:22px;margin:0}
 .sync-status{color:var(--mut);font-size:12px;white-space:nowrap}
 .workspace-view[hidden]{display:none}
 .card{background:var(--card);border:1px solid var(--bd);border-radius:14px;padding:14px;margin-bottom:14px}
-.sum{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+.sum{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px}
 .sum.extra{grid-template-columns:repeat(4,1fr);margin-top:10px}
 .sum .card{margin:0;padding:12px}
 .sum small{color:var(--mut);display:block}
@@ -47,6 +47,8 @@ h1{font-size:22px;margin:0}
 .row{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:8px}
 input,select,button{font:inherit;color:var(--tx);background:var(--bg);border:1px solid var(--bd);border-radius:10px;padding:10px;min-width:0}
 input,select{flex:1 1 130px}
+input:focus-visible,select:focus-visible,button:focus-visible{outline:2px solid var(--ac);outline-offset:2px}
+button:disabled{cursor:wait;opacity:.6}
 .seg{display:flex;gap:8px;margin-bottom:8px}
 .seg button{flex:1;cursor:pointer;font-weight:600}
 .seg button.on[data-t=in]{background:var(--in);color:#fff;border-color:var(--in)}
@@ -132,6 +134,17 @@ input,select{flex:1 1 130px}
 .bar span:first-child{width:90px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .bar i{display:block;height:10px;border-radius:5px;background:var(--out)}
 .bar span:last-child{color:var(--mut);margin-left:auto}
+.dashboard-filter{display:flex;align-items:center;gap:8px;margin-bottom:12px;color:var(--mut);font-size:13px}
+.dashboard-filter input{max-width:200px}
+.trend-row{display:grid;grid-template-columns:minmax(90px,130px) minmax(60px,1fr) minmax(92px,auto);align-items:center;gap:10px;padding:8px 0;border-top:1px solid var(--bd)}
+.trend-row:first-child{border-top:0}
+.trend-row>span{color:var(--mut);font-size:13px}
+.trend-row>b{text-align:right;font-size:13px}
+.trend-track{position:relative;height:14px;border-radius:7px;background:var(--bg)}
+.trend-track::after{position:absolute;top:-2px;bottom:-2px;left:50%;width:1px;background:var(--bd);content:""}
+.trend-track i{position:absolute;top:2px;height:10px;border-radius:5px}
+.trend-track .positive{background:var(--in)}
+.trend-track .negative{background:var(--out)}
 .empty,#msg{color:var(--mut);text-align:center;padding:14px 0}
 #msg{padding:0 0 10px;font-size:13px}
 @media(max-width:700px){
@@ -145,7 +158,7 @@ input,select{flex:1 1 130px}
   .nav-subitem{width:100%}
   .app-main{padding:12px}
   .page-header{align-items:center}
-  .sum{grid-template-columns:repeat(3,minmax(0,1fr))}
+  .sum{grid-template-columns:repeat(2,minmax(0,1fr))}
   .sum.extra{grid-template-columns:repeat(2,minmax(0,1fr))}
   .sum b{font-size:16px}
   .sync-status{white-space:normal;text-align:right}
@@ -168,6 +181,10 @@ input,select{flex:1 1 130px}
   .calf-photo-actions{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:6px;margin-left:0}
   .calf-photo-actions .photo-action{min-height:42px;line-height:1.25}
   .calf-photo-actions .x{min-height:42px}
+}
+@media(max-width:420px){
+  .trend-row{grid-template-columns:78px minmax(40px,1fr) 84px;gap:6px}
+  .dashboard-filter{flex-wrap:wrap}
 }
 </style>
 </head>
@@ -193,10 +210,16 @@ input,select{flex:1 1 130px}
 <header class="page-header"><div><p class="eyebrow">AgroBack</p><h1 id="viewTitle">Visão geral</h1></div><div style="display:flex;align-items:center;gap:12px"><small id="syncStatus" class="sync-status" role="status">Aguardando conexão</small><div id="me"></div></div></header>
 <div id="msg"></div>
 <section class="workspace-view" id="view-dashboard" data-view-panel="dashboard">
+<div class="dashboard-filter">
+  <label for="dashboardMonth">Período:</label>
+  <input id="dashboardMonth" type="month" aria-label="Filtrar indicadores do painel por mês">
+  <button type="button" id="clearDashboardMonth" class="secondary-button">Todo o período</button>
+</div>
 <div class="sum">
-  <div class="card"><small>Entradas</small><b class="in" id="sIn">R$ 0,00</b></div>
-  <div class="card"><small>Saídas</small><b class="out" id="sOut">R$ 0,00</b></div>
-  <div class="card"><small>Saldo atual</small><b id="sBal">R$ 0,00</b></div>
+  <div class="card"><small>Entradas no período</small><b class="in" id="sIn">R$ 0,00</b></div>
+  <div class="card"><small>Saídas no período</small><b class="out" id="sOut">R$ 0,00</b></div>
+  <div class="card"><small>Saldo do período</small><b id="sPeriodBal">R$ 0,00</b></div>
+  <div class="card"><small>Saldo atual acumulado</small><b id="sBal">R$ 0,00</b></div>
 </div>
 <div class="sum extra">
   <div class="card"><small>Contas pendentes</small><b id="dashboardOpenBills">0</b></div>
@@ -205,6 +228,10 @@ input,select{flex:1 1 130px}
   <div class="card"><small>Partos nos próximos 30 dias</small><b id="dashboardBirthCount">0</b></div>
 </div>
 <div id="initRow"></div>
+<div class="card">
+  <div class="top"><h2>Evolução mensal do saldo</h2></div>
+  <div id="dashboardTrend" aria-live="polite"></div>
+</div>
 
 <div class="card">
   <div class="top"><h2>Alertas e próximos cuidados</h2></div>
@@ -363,7 +390,7 @@ input,select{flex:1 1 130px}
 
 <script>
 const $=id=>document.getElementById(id);
-const viewTitles={dashboard:'DASHBOARD',movements:'Lançamentos',finance:'Financeiro',cows:'Vacas: cio e parto',calves:'Bezerros'};
+const viewTitles={dashboard:'Dashboard',movements:'Lançamentos',finance:'Financeiro',cows:'Vacas: cio e parto',calves:'Bezerros'};
 function selectView(view){
   if(!viewTitles[view])return;
   document.querySelectorAll('[data-view-panel]').forEach(panel=>{panel.hidden=panel.dataset.viewPanel!==view});
@@ -430,6 +457,9 @@ function validateRecord(collection,data,id=''){
 }
 $('date').value=iso(today);
 $('month').value=iso(today).slice(0,7);
+$('dashboardMonth').value=iso(today).slice(0,7);
+$('dashboardMonth').onchange=render;
+$('clearDashboardMonth').onclick=()=>{$('dashboardMonth').value='';render()};
 try{$('who').value=localStorage.getItem('cf_who')||''}catch(e){}
 
 document.querySelectorAll('.seg button').forEach(b=>b.onclick=()=>{
@@ -439,21 +469,46 @@ document.querySelectorAll('.seg button').forEach(b=>b.onclick=()=>{
 
 function render(){
   const m=$('month').value;
-  const monthItems=items.filter(i=>!m||i.date.startsWith(m));
+  const monthItems=items.filter(i=>!m||(typeof i.date==='string'&&i.date.startsWith(m)));
   const query=$('movementSearch').value.trim().toLocaleLowerCase();
-  const list=monthItems.filter(i=>!query||[i.desc,i.cat,i.who].some(value=>(value||'').toLocaleLowerCase().includes(query))).sort((a,b)=>b.date.localeCompare(a.date)||b.ts-a.ts);
+  const list=monthItems.filter(i=>!query||[i.desc,i.cat,i.who].some(value=>(value||'').toLocaleLowerCase().includes(query))).sort((a,b)=>(b.date||'').localeCompare(a.date||'')||(b.ts||0)-(a.ts||0));
+  const dashboardMonth=$('dashboardMonth').value;
+  const periodItems=items.filter(i=>!dashboardMonth||(typeof i.date==='string'&&i.date.startsWith(dashboardMonth)));
   let tin=0,tout=0;const cats={};
-  monthItems.forEach(i=>{
-    if(i.type==='in')tin+=i.value;else{tout+=i.value;cats[i.cat||'Outros']=(cats[i.cat||'Outros']||0)+i.value}
+  periodItems.forEach(i=>{
+    if(!Number.isFinite(i.value))return;
+    if(i.type==='in')tin+=i.value;
+    else if(i.type==='out'){tout+=i.value;cats[i.cat||'Outros']=(cats[i.cat||'Outros']||0)+i.value}
   });
   $('sIn').textContent=brl(tin);$('sOut').textContent=brl(tout);
-  const bal=initial+items.reduce((a,i)=>a+(i.type==='in'?i.value:-i.value),0);$('sBal').textContent=brl(bal);$('sBal').className=bal>=0?'in':'out';
+  const periodBalance=tin-tout;
+  $('sPeriodBal').textContent=brl(periodBalance);$('sPeriodBal').className=periodBalance>=0?'in':'out';
+  const bal=initial+items.reduce((a,i)=>a+(Number.isFinite(i.value)?i.type==='in'?i.value:i.type==='out'?-i.value:0:0),0);$('sBal').textContent=brl(bal);$('sBal').className=bal>=0?'in':'out';
   const ce=Object.entries(cats).sort((a,b)=>b[1]-a[1]);
   $('catCard').hidden=!ce.length;
   $('bars').innerHTML=ce.map(([k,v])=>`<div class="bar"><span>${esc(k)}</span><i style="width:${Math.max(4,v/ce[0][1]*55)}%"></i><span>${brl(v)}</span></div>`).join('');
+  const [anchorYear,anchorMonth]=dashboardMonth?dashboardMonth.split('-').map(Number):[new Date().getFullYear(),new Date().getMonth()+1];
+  const trendMonths=Array.from({length:6},(_,index)=>{
+    const date=new Date(anchorYear,anchorMonth-1-(5-index),1);
+    return {key:iso(date).slice(0,7),date,balance:0};
+  });
+  const trendByMonth=new Map(trendMonths.map(month=>[month.key,month]));
+  items.forEach(item=>{
+    if(!validDate(item.date)||!Number.isFinite(item.value)||!['in','out'].includes(item.type))return;
+    const month=trendByMonth.get(item.date.slice(0,7));
+    if(month)month.balance+=item.type==='in'?item.value:-item.value;
+  });
+  const maxTrend=Math.max(1,...trendMonths.map(month=>Math.abs(month.balance)));
+  $('dashboardTrend').innerHTML=trendMonths.map(month=>{
+    const width=Math.abs(month.balance)/maxTrend*50;
+    const left=month.balance<0?50-width:50;
+    const monthLabel=month.date.toLocaleDateString('pt-BR',{month:'short',year:'numeric'});
+    return `<div class="trend-row"><span>${esc(monthLabel)}</span><div class="trend-track" role="img" aria-label="${esc(monthLabel)}: ${brl(month.balance)}"><i class="${month.balance<0?'negative':'positive'}" style="left:${left}%;width:${width}%"></i></div><b class="${month.balance<0?'out':'in'}">${brl(month.balance)}</b></div>`;
+  }).join('');
   $('list').innerHTML=list.length?list.map(i=>{
-    const [y,mo,d]=i.date.split('-');
-    return `<div class="item"><div class="d"><div>${esc(i.desc||'(sem descrição)')}</div><small>${d}/${mo}/${y}${i.cat?' · '+esc(i.cat):''}${i.who?' · '+esc(i.who):''}</small></div><div class="v ${i.type}">${i.type==='in'?'+':'−'} ${brl(i.value)}</div>${canWrite?`<div class="item-actions"><button class="record-edit x" data-id="${i.id}" title="Editar lançamento" aria-label="Editar lançamento">✎</button><button class="delete-record x" data-id="${i.id}" title="Excluir lançamento" aria-label="Excluir lançamento">✕</button></div>`:''}</div>`}).join(''):'<div class="empty">'+(query?'Nenhum lançamento corresponde à busca.':'Nenhum lançamento neste mês.')+'</div>';
+    const [y,mo,d]=validDate(i.date)?i.date.split('-'):['','','Data inválida'];
+    const typeClass=i.type==='in'?'in':'out';
+    return `<div class="item"><div class="d"><div>${esc(i.desc||'(sem descrição)')}</div><small>${d}/${mo}/${y}${i.cat?' · '+esc(i.cat):''}${i.who?' · '+esc(i.who):''}</small></div><div class="v ${typeClass}">${i.type==='in'?'+':'−'} ${brl(Number.isFinite(i.value)?i.value:0)}</div>${canWrite?`<div class="item-actions"><button class="record-edit x" data-id="${i.id}" title="Editar lançamento" aria-label="Editar lançamento">✎</button><button class="delete-record x" data-id="${i.id}" title="Excluir lançamento" aria-label="Excluir lançamento">✕</button></div>`:''}</div>`}).join(''):'<div class="empty">'+(query?'Nenhum lançamento corresponde à busca.':'Nenhum lançamento neste mês.')+'</div>';
 }
 $('month').onchange=render;
 $('movementSearch').oninput=render;
@@ -830,14 +885,19 @@ $('exportCsv').onclick=()=>{
   if(!recordsLoaded){note('Aguarde a sincronização dos dados antes de exportar.');return}
   const columns=['tipo','data','descricao','brinco','categoria','valor','status','responsavel'];
   const rows=allExportRows();
-  const csv=[columns.join(';'),...rows.map(row=>columns.map(key=>`"${String(row[key]??'').replaceAll('"','""')}"`).join(';'))].join('\r\n');
+  const csvCell=(value,isNumeric=false)=>{
+    let text=String(value??'');
+    if(!isNumeric&&/^[\s]*[=+\-@]/.test(text))text="'"+text;
+    return `"${text.replaceAll('"','""')}"`;
+  };
+  const csv=[columns.join(';'),...rows.map(row=>columns.map(key=>csvCell(row[key],key==='valor'&&typeof row[key]==='number')).join(';'))].join('\r\n');
   downloadFile(`agroback-dados-${iso(new Date())}.csv`,'\uFEFF'+csv,'text/csv;charset=utf-8');
   toast(`✅ CSV exportado (${rows.length} registros).`,'#15803d');
 };
 $('exportBackup').onclick=()=>{
   if(!db){note('Faça login para acessar os dados compartilhados.');return}
   if(!recordsLoaded){note('Aguarde a sincronização dos dados antes de baixar o backup.');return}
-  const collections=Object.fromEntries(backupCollections.map(name=>[name,(name==='lancamentos'?items:name==='contas'?bills:name==='vacas'?cows:calves).map(({id,photoAnimal,photoTag,...data})=>({id,...data}))]));
+  const collections=Object.fromEntries(backupCollections.map(name=>[name,(name==='lancamentos'?items:name==='contas'?bills:name==='vacas'?cows:calves).map(({id,photoAnimal,photoTag,photoAnimalVersion,photoTagVersion,...data})=>({id,...data}))]));
   collections.config=[{id:'saldo',value:initial}];
   downloadFile(`agroback-backup-${iso(new Date())}.json`,JSON.stringify({version:1,exportedAt:new Date().toISOString(),collections},null,2),'application/json');
   toast('✅ Backup JSON baixado.','#15803d');
@@ -858,11 +918,15 @@ $('backupFile').onchange=async e=>{
     const validCollections=[...backupCollections,'config'];
     if(Object.keys(backup.collections).some(name=>!validCollections.includes(name)))throw new Error('O backup contém coleções incompatíveis.');
     const prepared=[];
+    const idsByCollection=new Map();
     for(const name of validCollections){
       const entries=backup.collections[name]??[];
       if(!Array.isArray(entries))throw new Error(`A lista ${name} é inválida.`);
       for(const record of entries){
         if(!record||typeof record.id!=='string'||!record.id.trim())throw new Error(`Há um registro sem identificador em ${name}.`);
+        if(!idsByCollection.has(name))idsByCollection.set(name,new Set());
+        if(idsByCollection.get(name).has(record.id))throw new Error(`O identificador ${record.id} aparece mais de uma vez em ${name}.`);
+        idsByCollection.get(name).add(record.id);
         const {id,...data}=record;
         if(!data||typeof data!=='object'||Array.isArray(data))throw new Error(`Há um registro inválido em ${name}.`);
         const valid=name==='config'?Number.isFinite(data.value)

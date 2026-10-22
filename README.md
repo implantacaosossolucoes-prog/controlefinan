@@ -5,7 +5,7 @@ Aplicativo financeiro com dados compartilhados entre dispositivos usando Supabas
 ## Configuração do Supabase
 
 1. Crie um projeto no Supabase.
-2. No **SQL Editor**, execute [`supabase/schema.sql`](./supabase/schema.sql) para criar a tabela compartilhada, o bucket privado de fotos e bloquear o acesso direto de usuários anônimos/autenticados. Execute o arquivo novamente quando houver atualizações no schema.
+2. No **SQL Editor**, execute [`supabase/schema.sql`](./supabase/schema.sql) para criar a tabela compartilhada, o bucket privado de fotos e bloquear o acesso direto de usuários anônimos/autenticados. O script também configura o trigger de atualização de `updated_at`; um caractere inválido que impedia sua execução foi removido. Reexecutá-lo não apaga os registros da tabela.
 3. Em **Project Settings → API**, copie a URL do projeto e a chave `service_role`. Essa chave é secreta: configure-a somente no Vercel e nunca a coloque no HTML, em variáveis `VITE_*` ou no Git.
 
 ## Configuração do Vercel
@@ -54,6 +54,6 @@ npm run dev:demo
 
 Abra a URL exibida no terminal (normalmente `http://localhost:3000` ou a URL encaminhada pelo Codespaces), em vez da prévia estática da porta 5500. Entre com `gabriel` ou `alipio` e a senha `teste123`. A senha pode ser alterada definindo `LOCAL_DEMO_PASSWORD`. Os dados desse modo ficam somente na memória e são apagados quando o servidor é encerrado; esse modo é apenas para testes e não deve ser usado com dados reais.
 
-Na aplicação, os lançamentos, contas e animais podem ser pesquisados e editados. O painel mostra contas vencidas e próximos cuidados pecuários. **Exportar dados em CSV** gera uma planilha dos registros; **Baixar backup JSON** cria um arquivo que pode ser restaurado pelo botão correspondente. A restauração atualiza os registros com o mesmo identificador e não apaga outros registros existentes.
+Na aplicação, os lançamentos, contas e animais podem ser pesquisados e editados. O painel permite filtrar entradas, saídas e categorias por mês (ou consultar todo o período); o saldo do período é entradas menos saídas nesse recorte, enquanto o saldo atual acumulado é o saldo inicial mais todos os lançamentos. A evolução mostra o fluxo líquido mensal dos seis meses até o mês selecionado. O painel também mostra contas vencidas e próximos cuidados pecuários. **Exportar dados em CSV** gera uma planilha dos registros com proteção contra fórmulas; **Baixar backup JSON** cria um arquivo versionado que pode ser restaurado pelo botão correspondente. A restauração valida os registros e atualiza os que têm o mesmo identificador sem apagar os demais. As imagens não são incluídas no backup.
 
 No cadastro de bezerros, a idade aparece abaixo da data de nascimento e é calculada em anos, meses e dias, com atualização diária. Use os campos de foto para tirar ou selecionar uma imagem do animal e outra do brinco. As fotos são reduzidas no navegador e enviadas como JPEG binário para um bucket privado do Supabase; somente usuários autenticados conseguem consultá-las. O app usa cache privado com versão da imagem para agilizar consultas seguintes; toque em uma miniatura para abrir a foto em tela cheia. A remoção do bezerro também exclui suas fotos. Os arquivos de backup JSON não contêm as imagens; elas permanecem no armazenamento privado do Supabase.

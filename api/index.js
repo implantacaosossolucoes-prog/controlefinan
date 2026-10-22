@@ -16,8 +16,16 @@ function send(response, status, payload, headers = {}) {
 
 async function parseBody(request, maxBytes = 1_000_000) {
   if ('body' in request) {
-    if (request.body && typeof request.body === 'object') return request.body;
+    if (request.body && typeof request.body === 'object') {
+      if (Buffer.byteLength(JSON.stringify(request.body)) > maxBytes) {
+        throw Object.assign(new Error('Request body too large'), { statusCode: 413 });
+      }
+      return request.body;
+    }
     if (typeof request.body !== 'string') return {};
+    if (Buffer.byteLength(request.body) > maxBytes) {
+      throw Object.assign(new Error('Request body too large'), { statusCode: 413 });
+    }
     try {
       return JSON.parse(request.body || '{}');
     } catch {
