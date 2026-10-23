@@ -135,14 +135,17 @@ button:disabled{cursor:wait;opacity:.6}
 .audit-entry details{margin-top:10px}
 .audit-entry summary{color:var(--ac);cursor:pointer;font-size:13px}
 .audit-entry pre{overflow:auto;max-height:240px;margin:8px 0 0;padding:10px;border-radius:8px;background:var(--bg);font-size:12px;white-space:pre-wrap;overflow-wrap:anywhere}
-.activity-entry{display:grid;grid-template-columns:minmax(120px,auto) minmax(0,1fr) auto;align-items:start;gap:10px;padding:12px 0;border-top:1px solid var(--bd)}
+.activity-entry{display:grid;grid-template-columns:minmax(90px,auto) minmax(0,1fr) minmax(150px,auto);align-items:start;gap:12px;padding:14px 0;border-top:1px solid var(--bd)}
 .activity-entry:first-child{border-top:0}
 .activity-entry time,.activity-entry small{color:var(--mut)}
 .activity-target{min-width:0;overflow-wrap:anywhere}
-.activity-field{display:block;color:var(--mut);font-size:12px}
+.activity-action{display:block;font-size:15px}
+.activity-context{display:block;margin-top:4px;color:var(--mut);font-size:13px}
+.activity-meta{display:flex;flex-direction:column;align-items:flex-end;gap:4px;text-align:right}
+.activity-meta b{color:var(--tx);font-size:13px}
 @media(max-width:850px){.audit-toolbar{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media(max-width:480px){.audit-toolbar{grid-template-columns:minmax(0,1fr)}.audit-entry-head{flex-direction:column}.audit-summary{align-items:flex-start;flex-direction:column}}
-@media(max-width:560px){.activity-entry{grid-template-columns:minmax(0,1fr);gap:3px}}
+@media(max-width:560px){.activity-entry{grid-template-columns:minmax(0,1fr);gap:8px}.activity-meta{align-items:flex-start;text-align:left}}
 #askIn{background:#15803d}#askOut{background:#dc2626}
 #editor{position:fixed;inset:0;background:rgba(0,0,0,.5);display:flex;align-items:center;justify-content:center;z-index:35;padding:16px}
 #editor[hidden]{display:none}
@@ -1033,24 +1036,56 @@ function humanizeActivityName(value){
 function formatActivityTarget(target,type){
   if(type==='login')return 'Entrou no sistema';
   if(type==='logout')return 'Saiu do sistema';
-  if(type==='click'&&/^(Botão|Navegação|Campo|Interagiu): /.test(String(target)))return target;
+  if(type==='click'&&String(target).startsWith('Botão clicado: '))return target;
+  if(type==='click'&&String(target).startsWith('Navegação: ')){
+    return `Botão de navegação clicado: ${String(target).slice('Navegação: '.length)}`;
+  }
+  if(type==='click'&&String(target).startsWith('Botão: ')){
+    return `Botão clicado: ${String(target).slice('Botão: '.length)}`;
+  }
+  if(type==='click'&&String(target).startsWith('Campo: ')){
+    return `Campo selecionado: ${String(target).slice('Campo: '.length)}`;
+  }
   const first=String(target||'').split(' < ')[0];
   const id=first.match(/#([\w-]+)/)?.[1];
   const view=first.match(/\[view=([\w-]+)\]/)?.[1];
+  const screenId=first.match(/section#view-([\w-]+)/)?.[1];
   if(type==='change'){
     if(String(target).startsWith('Campo alterado · '))return `Alterou um campo na tela ${String(target).slice('Campo alterado · '.length)}`;
     const name=activityNames[id]||humanizeActivityName(id)||humanizeActivityName(target.replace(/^.*?#?/,''));
     return `Alterou o campo ${name}`;
   }
   if(type==='click'){
-    if(id==='activityLogNav'||id==='deletionAuditNav')return `Abriu ${activityNames[id]}`;
-    if(id&&activityNames[id])return `Acionou “${activityNames[id]}”`;
-    if(view)return `Abriu ${viewTitles[view]||humanizeActivityName(view)}`;
+    const buttonName=activityNames[id];
+    if(view)return `Botão de navegação clicado: ${viewTitles[view]||humanizeActivityName(view)}`;
+    if(buttonName&&first.startsWith('button'))return `Botão clicado: ${buttonName}`;
+    if(buttonName&&first.startsWith('a'))return `Link clicado: ${buttonName}`;
+    if(buttonName)return `Controle clicado: ${buttonName}`;
     const title=first.match(/\{([^}]+)\}/)?.[1];
-    if(title)return `Acionou “${title}”`;
+    if(title)return `Botão clicado: ${title}`;
+    const className=first.match(/\.([\w-]+)/)?.[1];
+    const knownControls={
+      pay:'Pagar conta',bx:'Excluir conta',cx:'Remover vaca',calfRemove:'Remover bezerro',
+      'calf-remove':'Remover bezerro','delete-record':'Excluir lançamento','record-edit':'Editar registro',
+      'nav-item':'Navegação'
+    };
+    if(className&&knownControls[className])return `Botão clicado: ${knownControls[className]}`;
+    if(first.startsWith('button'))return 'Botão clicado';
+    if(first.startsWith('select'))return 'Filtro selecionado';
+    if(first.startsWith('input'))return `Campo selecionado: ${activityNames[id]||humanizeActivityName(id)||'campo'}`;
+    if(screenId)return `Interagiu com a tela ${viewTitles[screenId]||humanizeActivityName(screenId)}`;
     return 'Interagiu com a tela';
   }
   return target;
+}
+function activityScreenName(entry){
+  if(entry.event_type==='login'||entry.event_type==='logout')return 'Sessão';
+  if(entry.field_name?.startsWith('Tela: '))return entry.field_name;
+  const target=String(entry.target||'');
+  const view=target.match(/\[view=([\w-]+)\]/)?.[1];
+  if(view)return 'Navegação';
+  const screenId=target.match(/section#view-([\w-]+)/)?.[1];
+  return screenId?viewTitles[screenId]||humanizeActivityName(screenId):'Sistema';
 }
 let activityEntries=[];
 function renderDeletionAudit(){
@@ -1126,11 +1161,10 @@ function renderActivityLogs(){
     const formattedDate=Number.isNaN(createdAt.getTime())?entry.created_at:createdAt.toLocaleString('pt-BR');
     const label=activityTypeLabels[entry.event_type]||entry.event_type;
     const detail=formatActivityTarget(entry.target,entry.event_type);
-    const context=entry.field_name
-      ?entry.event_type==='change'?`Campo: ${humanizeActivityName(entry.field_name)}`
-        :entry.field_name.startsWith('Tela: ')?entry.field_name:`Detalhe: ${entry.field_name}`
-      :'';
-    return `<article class="activity-entry"><span class="audit-badge">${esc(label)}</span><div class="activity-target"><strong>${esc(detail)}</strong>${context?`<small class="activity-field">${esc(context)}</small>`:''}</div><small>${esc(cap(entry.username||''))} · ${esc(formattedDate)}</small></article>`;
+    const context=entry.event_type==='change'
+      ?`Campo: ${humanizeActivityName(entry.field_name||'Campo')}`
+      :`Tela: ${activityScreenName(entry)}`;
+    return `<article class="activity-entry"><span class="audit-badge">${esc(label)}</span><div class="activity-target"><strong class="activity-action">${esc(detail)}</strong><small class="activity-context">${esc(context)}</small></div><div class="activity-meta"><b>${esc(cap(entry.username||''))}</b><time datetime="${esc(entry.created_at)}">${esc(formattedDate)}</time></div></article>`;
   }).join(''):'<div class="empty">'+(activityEntries.length?'Nenhum log corresponde aos filtros.':'Nenhum log registrado.')+'</div>';
 }
 async function loadActivityLogs(){
