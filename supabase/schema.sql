@@ -6,6 +6,16 @@ create table if not exists public.records (
   primary key (collection, id)
 );
 
+create table if not exists public.deletion_audit (
+  id bigint generated always as identity primary key,
+  collection text not null check (collection in ('config', 'lancamentos', 'contas', 'vacas', 'bezerros')),
+  record_id text not null,
+  record_data jsonb not null,
+  reason text not null check (length(btrim(reason)) between 1 and 1000),
+  deleted_by text not null check (deleted_by in ('gabriel', 'alipio')),
+  deleted_at timestamptz not null default now()
+);
+
 insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
 values ('animal-photos', 'animal-photos', false, 700000, array['image/jpeg']::text[])
 on conflict (id) do update
@@ -28,6 +38,47 @@ alter table public.records
 alter table public.records enable row level security;
 revoke all on table public.records from public, anon, authenticated;
 grant all on table public.records to service_role;
+alter table public.deletion_audit enable row level security;
+revoke all on table public.deletion_audit from public, anon, authenticated;
+grant all on table public.deletion_audit to service_role;
+
+create or replace function public.delete_record(
+  p_collection text,
+  p_record_id text,
+  p_reason text,
+  p_deleted_by text
+)
+returns void
+language plpgsql
+set search_path = ''
+as $$
+declare
+  deleted_data jsonb;
+begin
+  if p_collection is null or p_collection not in ('config', 'lancamentos', 'contas', 'vacas', 'bezerros')
+    or p_record_id is null or p_record_id !~ '^[A-Za-z0-9_-]{1,128}$'
+    or p_reason is null or length(btrim(p_reason)) not between 1 and 1000
+    or p_deleted_by is null or p_deleted_by not in ('gabriel', 'alipio') then
+    raise exception 'Invalid deletion data';
+  end if;
+
+  select data into deleted_data
+  from public.records
+  where collection = p_collection and id = p_record_id
+  for update;
+
+  if not found then
+    raise exception 'Record not found';
+  end if;
+
+  insert into public.deletion_audit (collection, record_id, record_data, reason, deleted_by)
+  values (p_collection, p_record_id, deleted_data, btrim(p_reason), p_deleted_by);
+
+  delete from public.records where collection = p_collection and id = p_record_id;
+end;
+$$;
+revoke all on function public.delete_record(text, text, text, text) from public, anon, authenticated;
+grant execute on function public.delete_record(text, text, text, text) to service_role;
 
 create or replace function public.restore_records(p_records jsonb)
 returns void
@@ -89,7 +140,14 @@ $$;
 revoke all on function public.restore_records(jsonb) from public, anon, authenticated;
 grant execute on function public.restore_records(jsonb) to service_role;
 
-create or replace function public.pay_bill(p_bill_id text, p_movement_id text, p_who text, p_date date)
+drop function if exists public.pay_bill(text, text, text, date);
+create or replace function public.pay_bill(
+  p_bill_id text,
+  p_movement_id text,
+  p_who text,
+  p_date date,
+  p_deleted_by text
+)
 returns text
 language plpgsql
 set search_path = ''
@@ -110,7 +168,8 @@ begin
     raise exception 'Invalid bill value';
   end if;
   bill_value := (bill_data ->> 'value')::numeric;
-  if bill_value <= 0 or bill_value > 1000000000000 or p_movement_id is null or p_date is null then
+  if bill_value <= 0 or bill_value > 1000000000000 or p_movement_id is null or p_date is null
+    or p_deleted_by is null or p_deleted_by not in ('gabriel', 'alipio') then
     raise exception 'Invalid payment data';
   end if;
 
@@ -129,12 +188,15 @@ begin
     )
   );
 
+  insert into public.deletion_audit (collection, record_id, record_data, reason, deleted_by)
+  values ('contas', p_bill_id, bill_data, 'Conta paga.', p_deleted_by);
+
   delete from public.records where collection = 'contas' and id = p_bill_id;
   return p_movement_id;
 end;
 $$;
-revoke all on function public.pay_bill(text, text, text, date) from public, anon, authenticated;
-grant execute on function public.pay_bill(text, text, text, date) to service_role;
+revoke all on function public.pay_bill(text, text, text, date, text) from public, anon, authenticated;
+grant execute on function public.pay_bill(text, text, text, date, text) to service_role;
 
 create or replace function public.set_records_updated_at()
 returns trigger

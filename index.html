@@ -45,9 +45,9 @@ h1{font-size:22px;margin:0}
 .sum b{font-size:18px;display:block;margin-top:2px;word-break:break-word}
 .in{color:var(--in)}.out{color:var(--out)}
 .row{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:8px}
-input,select,button{font:inherit;color:var(--tx);background:var(--bg);border:1px solid var(--bd);border-radius:10px;padding:10px;min-width:0}
+input,select,button,textarea{font:inherit;color:var(--tx);background:var(--bg);border:1px solid var(--bd);border-radius:10px;padding:10px;min-width:0}
 input,select{flex:1 1 130px}
-input:focus-visible,select:focus-visible,button:focus-visible{outline:2px solid var(--ac);outline-offset:2px}
+input:focus-visible,select:focus-visible,button:focus-visible,textarea:focus-visible{outline:2px solid var(--ac);outline-offset:2px}
 button:disabled{cursor:wait;opacity:.6}
 .seg{display:flex;gap:8px;margin-bottom:8px}
 .seg button{flex:1;cursor:pointer;font-weight:600}
@@ -111,6 +111,19 @@ button:disabled{cursor:wait;opacity:.6}
 #ask p{margin:0 0 12px;font-weight:600}
 #ask .s2{display:flex;gap:8px;margin-bottom:8px}
 #ask .s2 button{flex:1;padding:14px;font-weight:700;cursor:pointer;color:#fff;border:0}
+#deleteDialog{position:fixed;inset:0;background:rgba(0,0,0,.5);display:flex;align-items:center;justify-content:center;z-index:40;padding:16px}
+#deleteDialog[hidden]{display:none}
+#deleteDialog .box{width:100%;max-width:420px;padding:18px;border:1px solid var(--bd);border-radius:14px;background:var(--card)}
+#deleteDialog h2{margin:0 0 8px;font-size:18px}
+#deleteDialog p{margin:0 0 12px;color:var(--mut)}
+#deleteDialog textarea{display:block;width:100%;min-height:110px;resize:vertical;margin-bottom:12px}
+.dialog-actions{display:flex;justify-content:flex-end;gap:8px}
+.danger-button{background:var(--out);border-color:var(--out);color:#fff;cursor:pointer;font-weight:600}
+.audit-entry{padding:12px 0;border-top:1px solid var(--bd)}
+.audit-entry:first-child{border-top:0}
+.audit-entry p{margin:6px 0}
+.audit-entry small{color:var(--mut)}
+.audit-entry pre{overflow:auto;max-height:240px;padding:10px;border-radius:8px;background:var(--bg);font-size:12px;white-space:pre-wrap;overflow-wrap:anywhere}
 #askIn{background:#15803d}#askOut{background:#dc2626}
 #editor{position:fixed;inset:0;background:rgba(0,0,0,.5);display:flex;align-items:center;justify-content:center;z-index:35;padding:16px}
 #editor[hidden]{display:none}
@@ -203,6 +216,7 @@ button:disabled{cursor:wait;opacity:.6}
         <button class="nav-item nav-subitem" type="button" data-view="calves">Bezerros</button>
       </div>
     </div>
+    <button class="nav-item" id="deletionAuditNav" type="button" data-view="deletions" hidden><span class="nav-icon" aria-hidden="true">▤</span>Exclusões</button>
   </nav>
 </aside>
 <div class="app-main">
@@ -370,10 +384,19 @@ button:disabled{cursor:wait;opacity:.6}
   <div id="bills" style="margin-top:8px"></div>
 </div>
 </section>
+
+<section class="workspace-view" id="view-deletions" data-view-panel="deletions" hidden>
+<div class="card">
+  <div class="top"><h2>Histórico de exclusões</h2><button type="button" id="refreshDeletionAudit" class="secondary-button">Atualizar</button></div>
+  <p style="color:var(--mut);margin:0 0 10px">As 500 exclusões mais recentes, com justificativa, usuário e dados do registro.</p>
+  <div id="deletionAuditList"><div class="empty">Carregando exclusões...</div></div>
+</div>
+</section>
 </main>
 </div>
 </div>
 <div id="ask" hidden><div class="box"><p>Este lançamento é:</p><div class="s2"><button id="askIn">＋ Entrada</button><button id="askOut">－ Saída</button></div><button id="askCancel" class="x">Cancelar</button></div></div>
+<div id="deleteDialog" role="dialog" aria-modal="true" aria-labelledby="deleteTitle" hidden><form class="box" id="deleteForm"><h2 id="deleteTitle">Justificar exclusão</h2><p id="deleteTarget"></p><label for="deleteReason">Justificativa (obrigatória)</label><textarea id="deleteReason" maxlength="1000" required></textarea><div class="dialog-actions"><button type="button" id="deleteCancel" class="secondary-button">Cancelar</button><button type="submit" id="deleteConfirm" class="danger-button">Excluir</button></div></form></div>
 <div id="editor" hidden><form class="box" id="editorForm"><h2 id="editorTitle">Editar registro</h2><div id="editorFields"></div><div class="editor-actions"><button type="button" id="editorCancel" class="secondary-button">Cancelar</button><button type="submit" id="editorSave">Salvar alterações</button></div></form></div>
 <input id="photoReplaceInput" type="file" accept="image/*" capture="environment" hidden>
 <dialog id="calfPhotoViewer" aria-label="Visualização da foto"><button id="calfPhotoClose" type="button" aria-label="Fechar foto">×</button><figure><img id="calfPhotoViewerImage" alt=""></figure></dialog>
@@ -392,9 +415,9 @@ button:disabled{cursor:wait;opacity:.6}
 import { buildCsv, calculateFinance, prepareBackup } from '/shared/data.js';
 
 const $=id=>document.getElementById(id);
-const viewTitles={dashboard:'Dashboard',movements:'Lançamentos',finance:'Financeiro',cows:'Vacas: cio e parto',calves:'Bezerros'};
+const viewTitles={dashboard:'Dashboard',movements:'Lançamentos',finance:'Financeiro',cows:'Vacas: cio e parto',calves:'Bezerros',deletions:'Histórico de exclusões'};
 function selectView(view){
-  if(!viewTitles[view])return;
+  if(!viewTitles[view]||(view==='deletions'&&me!=='alipio'))return;
   document.querySelectorAll('[data-view-panel]').forEach(panel=>{panel.hidden=panel.dataset.viewPanel!==view});
   document.querySelectorAll('.nav-item[data-view]').forEach(button=>{
     const active=button.dataset.view===view;
@@ -409,6 +432,7 @@ function selectView(view){
   livestockToggle.setAttribute('aria-expanded',String(livestockSelected));
   livestockSubmenu.hidden=!livestockSelected;
   $('viewTitle').textContent=viewTitles[view];
+  if(view==='deletions')void loadDeletionAudit();
 }
 document.querySelector('.side-nav').addEventListener('click',event=>{
   const toggle=event.target.closest('[data-menu-toggle="livestock"]');
@@ -550,6 +574,11 @@ $('bills').onclick=async e=>{
     return;
   }
   const bill=bills.find(x=>x.id===b.dataset.id);
+  if(b.classList.contains('bx')){
+    barmed=null;
+    openRecordDeletion('contas',b.dataset.id,bill?.desc||'Conta','✅ Conta excluída.');
+    return;
+  }
   try{
     if(b.classList.contains('pay')){
       if(!bill)throw new Error('A conta não está mais disponível.');
@@ -559,9 +588,8 @@ $('bills').onclick=async e=>{
       });
       await db.refresh();
       toast('✅ Saída lançada: '+brl(bill.value),'#dc2626');
-    }else await db.collection('contas').doc(b.dataset.id).delete();
+    }
     barmed=null;note('');
-    if(b.classList.contains('bx'))toast('✅ Conta excluída.','#15803d');
   }catch(err){note('Não foi possível concluir a operação: '+err.message)}
 };
 let cows=[],carmed=null,calves=[],calved=null;
@@ -613,7 +641,9 @@ $('cows').onclick=async e=>{
     setTimeout(()=>{if(carmed===b&&b.isConnected){b.textContent='✕';b.style.color='';b.style.fontWeight='';carmed=null}},4000);
     return;
   }
-  try{await db.collection('vacas').doc(b.dataset.id).delete();carmed=null;note('');toast('✅ Vaca removida.','#15803d')}catch(err){note('Não foi possível remover a vaca: '+err.message)}
+  const cow=cows.find(item=>item.id===b.dataset.id);
+  carmed=null;
+  openRecordDeletion('vacas',b.dataset.id,cow?.nome||'Vaca','✅ Vaca removida.');
 };
 function calfAge(birthDate){
   if(!validDate(birthDate))return '';
@@ -765,7 +795,9 @@ $('calves').onclick=async e=>{
     setTimeout(()=>{if(calved===b&&b.isConnected){b.textContent='✕';b.style.color='';b.style.fontWeight='';calved=null}},4000);
     return;
   }
-  try{await db.collection('bezerros').doc(b.dataset.id).delete();clearCalfPhotoPreviews(b.dataset.id);calved=null;note('');toast('✅ Bezerro removido.','#15803d')}catch(err){note('Não foi possível remover o bezerro: '+err.message)}
+  const calf=calves.find(item=>item.id===b.dataset.id);
+  calved=null;
+  openRecordDeletion('bezerros',b.dataset.id,calf?.descricao||'Bezerro','✅ Bezerro removido.',()=>clearCalfPhotoPreviews(b.dataset.id));
 };
 $('photoReplaceInput').onchange=async e=>{
   const file=e.target.files[0],target=photoReplaceTarget;
@@ -911,8 +943,27 @@ let me=null,started=false;
 const ALLOWED=['gabriel','alipio'];
 const norm=s=>s.trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'');
 const cap=n=>n.charAt(0).toUpperCase()+n.slice(1);
+async function loadDeletionAudit(){
+  if(me!=='alipio')return;
+  const button=$('refreshDeletionAudit');
+  button.disabled=true;
+  $('deletionAuditList').innerHTML='<div class="empty">Carregando exclusões...</div>';
+  try{
+    const entries=await apiRequest('/api/deletions');
+    $('deletionAuditList').innerHTML=entries.length?entries.map(entry=>{
+      const deletedAt=new Date(entry.deleted_at);
+      const formattedDate=Number.isNaN(deletedAt.getTime())?entry.deleted_at:deletedAt.toLocaleString('pt-BR');
+      const data=JSON.stringify(entry.record_data,null,2);
+      return `<article class="audit-entry"><b>${esc(entry.collection)} · ${esc(entry.record_id)}</b><p>${esc(entry.reason)}</p><small>Excluído por ${esc(cap(entry.deleted_by))} · ${esc(formattedDate)}</small><details><summary>Dados do registro excluído</summary><pre>${esc(data)}</pre></details></article>`;
+    }).join(''):'<div class="empty">Nenhuma exclusão registrada.</div>';
+  }catch(error){
+    $('deletionAuditList').innerHTML=`<div class="empty">Não foi possível carregar as exclusões: ${esc(error.message)}</div>`;
+  }finally{button.disabled=false}
+}
+$('refreshDeletionAudit').onclick=()=>void loadDeletionAudit();
 function enter(n){
   me=n;$('login').hidden=true;$('who').value=cap(n);$('who').readOnly=true;
+  $('deletionAuditNav').hidden=n!=='alipio';
   $('me').innerHTML=`Logado como <b>${cap(n)}</b> <button id="lout" class="x">Sair</button>`;
   void startApp().catch(error=>note(error.message));
 }
@@ -953,7 +1004,37 @@ $('initRow').onclick=async e=>{
 
 const note=t=>{$('msg').textContent=t};
 let tt;function toast(t,c){const e=$('toast');e.textContent=t;e.style.background=c;e.classList.add('show');clearTimeout(tt);tt=setTimeout(()=>e.classList.remove('show'),3000)}
-let armed=null;
+let armed=null,pendingDeletion=null;
+function openRecordDeletion(collection,id,label,successMessage,onDeleted){
+  pendingDeletion={collection,id,successMessage,onDeleted};
+  $('deleteTarget').textContent=`Registro: ${label}`;
+  $('deleteReason').value='';
+  $('deleteDialog').hidden=false;
+  $('deleteReason').focus();
+}
+$('deleteCancel').onclick=()=>{
+  $('deleteDialog').hidden=true;
+  $('deleteForm').reset();
+  pendingDeletion=null;
+};
+$('deleteForm').onsubmit=async event=>{
+  event.preventDefault();
+  if(!pendingDeletion||!db)return;
+  const reason=$('deleteReason').value.trim();
+  if(!reason){$('deleteReason').focus();return}
+  const deletion=pendingDeletion;
+  $('deleteConfirm').disabled=true;
+  try{
+    await db.collection(deletion.collection).doc(deletion.id).delete(reason);
+    pendingDeletion=null;
+    $('deleteDialog').hidden=true;
+    $('deleteForm').reset();
+    deletion.onDeleted?.();
+    note('');
+    toast(deletion.successMessage,'#15803d');
+  }catch(error){note('Não foi possível excluir o registro: '+error.message)}
+  finally{$('deleteConfirm').disabled=false}
+};
 $('list').onclick=async e=>{
   const edit=e.target.closest('.record-edit');
   if(edit){const item=items.find(x=>x.id===edit.dataset.id);if(item)openEditor('lancamentos',item);return}
@@ -965,7 +1046,9 @@ $('list').onclick=async e=>{
     setTimeout(()=>{if(armed===b&&b.isConnected){b.textContent='✕';b.style.color='';b.style.fontWeight='';armed=null}},4000);
     return;
   }
-  try{await db.collection('lancamentos').doc(b.dataset.id).delete();armed=null;note('');toast('✅ Lançamento excluído.','#15803d')}catch(err){note('Não foi possível excluir o lançamento: '+err.message)}
+  const item=items.find(record=>record.id===b.dataset.id);
+  armed=null;
+  openRecordDeletion('lancamentos',b.dataset.id,item?.desc||'Lançamento','✅ Lançamento excluído.');
 };
 
 $('add').onclick=()=>{
@@ -1057,7 +1140,7 @@ function createSharedDb(){
         const docQuery=new URLSearchParams({collection:name,id});
         return {
           set:data=>mutate('/api/records?'+docQuery,{method:'PUT',body:JSON.stringify({data})}),
-          delete:()=>mutate('/api/records?'+docQuery,{method:'DELETE'}),
+          delete:reason=>mutate('/api/records?'+docQuery,{method:'DELETE',body:JSON.stringify({reason})}),
           onSnapshot:(callback,onError)=>watch(name,id,callback,onError)
         };
       },

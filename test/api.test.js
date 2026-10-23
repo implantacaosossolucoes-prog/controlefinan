@@ -33,14 +33,77 @@ async function request(method, url, body, cookie = '', headers = {}) {
   return res;
 }
 
-async function loginCookie() {
+async function loginCookie(username = 'gabriel') {
   const response = await request('POST', '/api/login', {
-    username: 'gabriel',
-    password: 'secret-gabriel'
+    username,
+    password: username === 'gabriel' ? 'secret-gabriel' : 'secret-alipio'
   });
   assert.equal(response.statusCode, 200);
   return response.headers['set-cookie'].split(';')[0];
 }
+
+test('record deletion requires a reason and records its authenticated actor transactionally', async () => {
+  const cookie = await loginCookie();
+  const previousFetch = globalThis.fetch;
+  const calls = [];
+  globalThis.fetch = async (url, options) => {
+    calls.push({ url: String(url), options });
+    return new Response(null, { status: 204 });
+  };
+  try {
+    const missingReason = await request(
+      'DELETE',
+      '/api/records?collection=contas&id=bill-1',
+      {},
+      cookie
+    );
+    assert.equal(missingReason.statusCode, 400);
+    assert.equal(calls.length, 0);
+
+    const response = await request(
+      'DELETE',
+      '/api/records?collection=contas&id=bill-1',
+      { reason: '  Conta duplicada  ' },
+      cookie
+    );
+    assert.equal(response.statusCode, 200);
+    assert.equal(calls.length, 1);
+    assert.match(calls[0].url, /\/rest\/v1\/rpc\/delete_record$/);
+    assert.deepEqual(JSON.parse(calls[0].options.body), {
+      p_collection: 'contas',
+      p_record_id: 'bill-1',
+      p_reason: 'Conta duplicada',
+      p_deleted_by: 'gabriel'
+    });
+  } finally {
+    globalThis.fetch = previousFetch;
+  }
+});
+
+test('deletion history is accessible only to Alipio', async () => {
+  const previousFetch = globalThis.fetch;
+  const calls = [];
+  globalThis.fetch = async url => {
+    calls.push(String(url));
+    return new Response(JSON.stringify([]), {
+      status: 200,
+      headers: { 'Content-Type': 'application/json' }
+    });
+  };
+  try {
+    const gabriel = await request('GET', '/api/deletions', undefined, await loginCookie());
+    assert.equal(gabriel.statusCode, 403);
+    assert.equal(calls.length, 0);
+
+    const alipio = await request('GET', '/api/deletions', undefined, await loginCookie('alipio'));
+    assert.equal(alipio.statusCode, 200);
+    assert.deepEqual(alipio.json(), []);
+    assert.match(calls[0], /\/rest\/v1\/deletion_audit\?/);
+    assert.match(calls[0], /limit=500/);
+  } finally {
+    globalThis.fetch = previousFetch;
+  }
+});
 
 test('production data routes require a signed-in session', async () => {
   const response = await request('GET', '/api/records');
@@ -204,6 +267,7 @@ test('paying a bill uses one transactional RPC instead of separate writes', asyn
     assert.equal(payload.p_bill_id, 'bill-1');
     assert.equal(payload.p_who, 'Gabriel');
     assert.equal(payload.p_date, '2026-01-10');
+    assert.equal(payload.p_deleted_by, 'gabriel');
     assert.match(payload.p_movement_id, /^[\da-f-]{36}$/i);
   } finally {
     globalThis.fetch = previousFetch;

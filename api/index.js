@@ -164,7 +164,9 @@ async function supabaseRequest(path, options = {}) {
   if (!key.startsWith('sb_secret_')) {
     headers.Authorization = `Bearer ${key}`;
   }
-  const endpoint = path.startsWith('/rpc/') ? `${url}/rest/v1${path}` : `${url}/rest/v1/records${path}`;
+  const endpoint = path.startsWith('/rpc/') || path.startsWith('/deletion_audit')
+    ? `${url}/rest/v1${path}`
+    : `${url}/rest/v1/records${path}`;
   const response = await fetch(endpoint, {
     ...options,
     headers
@@ -181,7 +183,7 @@ async function supabaseRequest(path, options = {}) {
     if (['PGRST205', '42P01'].includes(code)) {
       throw Object.assign(
         new Error('Supabase table is missing'),
-        { publicMessage: 'A tabela records não existe no Supabase. Execute o arquivo supabase/schema.sql no SQL Editor.' }
+        { publicMessage: 'Uma tabela necessária ao app não existe no Supabase. Execute o arquivo supabase/schema.sql no SQL Editor.' }
       );
     }
     if (response.status === 401 || response.status === 403) {
@@ -275,6 +277,7 @@ export default async function handler(request, response) {
       logout: ['POST'],
       session: ['GET'],
       records: ['GET', 'POST', 'PUT', 'DELETE'],
+      deletions: ['GET'],
       restore: ['POST'],
       'pay-bill': ['POST'],
       'calf-photos': ['GET', 'POST']
@@ -314,6 +317,22 @@ export default async function handler(request, response) {
     const session = getSession(request);
     if (!session) return send(response, 401, { error: 'Sua sessão expirou. Entre novamente.' });
 
+    if (route === 'deletions') {
+      if (request.method !== 'GET') {
+        return send(response, 405, { error: 'Método não permitido.' }, { Allow: 'GET' });
+      }
+      if (session.username !== 'alipio') {
+        return send(response, 403, { error: 'Somente o usuário Alipio pode consultar as exclusões.' });
+      }
+      const query = new URLSearchParams({
+        select: 'id,collection,record_id,record_data,reason,deleted_by,deleted_at',
+        order: 'deleted_at.desc,id.desc',
+        limit: '500'
+      });
+      const entries = await supabaseRequest(`/deletion_audit?${query}`);
+      return send(response, 200, entries);
+    }
+
     if (route === 'restore') {
       const body = await parseBody(request, 4_000_000);
       let records;
@@ -347,7 +366,8 @@ export default async function handler(request, response) {
           p_bill_id: id,
           p_movement_id: movementId,
           p_who: who,
-          p_date: date
+          p_date: date,
+          p_deleted_by: session.username
         })
       });
       return send(response, 200, { id: movementId });
@@ -396,7 +416,7 @@ export default async function handler(request, response) {
       return send(response, 405, { error: 'Método não permitido.' }, { Allow: 'GET, POST' });
     }
 
-    const body = ['POST', 'PUT'].includes(request.method) ? await parseBody(request) : {};
+    const body = ['POST', 'PUT', 'DELETE'].includes(request.method) ? await parseBody(request) : {};
     const collection = params.get('collection') || (request.method === 'POST' ? body.collection : null);
     const id = params.get('id');
     if (collection !== null && !validCollection(collection)) return send(response, 400, { error: 'Coleção inválida.' });
@@ -441,9 +461,29 @@ export default async function handler(request, response) {
       if (!validRecordId(id)) {
         return send(response, 400, { error: 'Registro inválido.' });
       }
-      if (collection === 'bezerros' && validCalfId(id)) await removeCalfPhotos(id);
-      const query = new URLSearchParams({ collection: `eq.${collection}`, id: `eq.${id}` });
-      await supabaseRequest(`?${query}`, { method: 'DELETE', headers: { Prefer: 'return=minimal' } });
+      const reason = typeof body.reason === 'string' ? body.reason.trim() : '';
+      if (!reason || reason.length > 1000 || reason.includes('\0')) {
+        return send(response, 400, { error: 'Informe uma justificativa de até 1.000 caracteres para excluir o registro.' });
+      }
+      await supabaseRequest('/rpc/delete_record', {
+        method: 'POST',
+        headers: { Prefer: 'return=minimal' },
+        body: JSON.stringify({
+          p_collection: collection,
+          p_record_id: id,
+          p_reason: reason,
+          p_deleted_by: session.username
+        })
+      });
+      if (collection === 'bezerros' && validCalfId(id)) {
+        try {
+          await removeCalfPhotos(id);
+        } catch {
+          throw Object.assign(new Error('Calf was deleted but its photos could not be removed'), {
+            publicMessage: 'O bezerro foi excluído e a justificativa foi registrada, mas não foi possível remover as fotos. Confira o armazenamento do Supabase.'
+          });
+        }
+      }
       return send(response, 200, { ok: true });
     }
 

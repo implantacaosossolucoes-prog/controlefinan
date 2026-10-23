@@ -6,6 +6,7 @@ const cookieName = 'cf_demo_session';
 const sessions = new Map();
 const records = new Map([...collections].map(name => [name, new Map()]));
 const calfPhotos = new Map();
+const deletionAudit = [];
 const password = process.env.LOCAL_DEMO_PASSWORD || 'teste123';
 
 function send(response, status, payload, headers = {}) {
@@ -81,6 +82,41 @@ export default async function devApiHandler(request, response) {
     }
 
     if (!sessionFor(request)) return send(response, 401, { error: 'Sua sessão expirou. Entre novamente.' });
+
+    if (request.method === 'GET' && route === 'deletions') {
+      if (sessionFor(request) !== 'alipio') {
+        return send(response, 403, { error: 'Somente o usuário Alipio pode consultar as exclusões.' });
+      }
+      return send(response, 200, deletionAudit.slice(-500).reverse());
+    }
+
+    if (request.method === 'POST' && route === 'pay-bill') {
+      const body = await parseBody(request);
+      const bill = records.get('contas').get(body.id);
+      if (!bill) return send(response, 404, { error: 'A conta não está mais disponível.' });
+      const movementId = randomUUID();
+      const movement = {
+        type: 'out',
+        value: bill.value,
+        desc: bill.desc || '',
+        cat: 'Contas a pagar',
+        date: body.date,
+        who: body.who || '',
+        ts: Date.now()
+      };
+      deletionAudit.push({
+        id: deletionAudit.length + 1,
+        collection: 'contas',
+        record_id: body.id,
+        record_data: structuredClone(bill),
+        reason: 'Conta paga.',
+        deleted_by: sessionFor(request),
+        deleted_at: new Date().toISOString()
+      });
+      records.get('lancamentos').set(movementId, movement);
+      records.get('contas').delete(body.id);
+      return send(response, 200, { id: movementId });
+    }
 
     if (route === 'calf-photos') {
       const calfId = url.searchParams.get('calfId');
@@ -163,6 +199,22 @@ export default async function devApiHandler(request, response) {
 
     if (request.method === 'DELETE' && route === 'records') {
       if (!collection || !id || !collections.has(collection)) return send(response, 400, { error: 'Registro inválido.' });
+      const body = await parseBody(request);
+      const reason = typeof body.reason === 'string' ? body.reason.trim() : '';
+      if (!reason || reason.length > 1000) {
+        return send(response, 400, { error: 'Informe uma justificativa de até 1.000 caracteres para excluir o registro.' });
+      }
+      const data = records.get(collection).get(id);
+      if (!data) return send(response, 404, { error: 'Registro não encontrado.' });
+      deletionAudit.push({
+        id: deletionAudit.length + 1,
+        collection,
+        record_id: id,
+        record_data: structuredClone(data),
+        reason,
+        deleted_by: sessionFor(request),
+        deleted_at: new Date().toISOString()
+      });
       if (collection === 'bezerros') {
         calfPhotos.delete(calfPhotoKey(id, 'animal'));
         calfPhotos.delete(calfPhotoKey(id, 'tag'));
