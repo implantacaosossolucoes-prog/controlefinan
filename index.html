@@ -21,6 +21,7 @@ body{margin:0;background:var(--bg);color:var(--tx);font:15px/1.4 system-ui,-appl
 .sidebar-brand img{width:42px;height:42px;object-fit:contain;background:#fff;border-radius:8px;flex:none}
 .side-nav{display:flex;flex-direction:column;gap:4px}
 .nav-item{display:flex;align-items:center;gap:10px;width:100%;padding:10px;border:0;border-radius:8px;background:transparent;color:#d9e1e8;text-align:left;cursor:pointer}
+.nav-item[hidden]{display:none}
 .nav-item:hover,.nav-item.is-active{background:#3a5368;color:#fff}
 .nav-item.is-active{font-weight:650}
 .nav-icon{width:20px;text-align:center;font-size:16px}
@@ -121,9 +122,21 @@ button:disabled{cursor:wait;opacity:.6}
 .danger-button{background:var(--out);border-color:var(--out);color:#fff;cursor:pointer;font-weight:600}
 .audit-entry{padding:12px 0;border-top:1px solid var(--bd)}
 .audit-entry:first-child{border-top:0}
-.audit-entry p{margin:6px 0}
-.audit-entry small{color:var(--mut)}
-.audit-entry pre{overflow:auto;max-height:240px;padding:10px;border-radius:8px;background:var(--bg);font-size:12px;white-space:pre-wrap;overflow-wrap:anywhere}
+.audit-toolbar{display:grid;grid-template-columns:minmax(180px,2fr) repeat(4,minmax(130px,1fr));gap:8px;margin:12px 0}
+.audit-toolbar input,.audit-toolbar select{width:100%;min-width:0}
+.audit-summary{display:flex;align-items:center;justify-content:space-between;gap:8px;margin:8px 0;color:var(--mut);font-size:13px}
+.audit-entry{padding:14px;margin:10px 0;border:1px solid var(--bd);border-radius:12px;background:var(--card)}
+.audit-entry-head{display:flex;justify-content:space-between;align-items:flex-start;gap:12px}
+.audit-entry-title{min-width:0}
+.audit-entry-title strong{display:block;overflow-wrap:anywhere}
+.audit-entry-title small,.audit-entry time{color:var(--mut)}
+.audit-badge{display:inline-flex;align-items:center;padding:3px 8px;border-radius:999px;background:var(--bg);font-size:12px;font-weight:650;white-space:nowrap}
+.audit-reason{margin:12px 0 8px;padding-left:10px;border-left:3px solid var(--out);overflow-wrap:anywhere}
+.audit-entry details{margin-top:10px}
+.audit-entry summary{color:var(--ac);cursor:pointer;font-size:13px}
+.audit-entry pre{overflow:auto;max-height:240px;margin:8px 0 0;padding:10px;border-radius:8px;background:var(--bg);font-size:12px;white-space:pre-wrap;overflow-wrap:anywhere}
+@media(max-width:850px){.audit-toolbar{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:480px){.audit-toolbar{grid-template-columns:minmax(0,1fr)}.audit-entry-head{flex-direction:column}.audit-summary{align-items:flex-start;flex-direction:column}}
 #askIn{background:#15803d}#askOut{background:#dc2626}
 #editor{position:fixed;inset:0;background:rgba(0,0,0,.5);display:flex;align-items:center;justify-content:center;z-index:35;padding:16px}
 #editor[hidden]{display:none}
@@ -388,8 +401,27 @@ button:disabled{cursor:wait;opacity:.6}
 <section class="workspace-view" id="view-deletions" data-view-panel="deletions" hidden>
 <div class="card">
   <div class="top"><h2>Histórico de exclusões</h2><button type="button" id="refreshDeletionAudit" class="secondary-button">Atualizar</button></div>
-  <p style="color:var(--mut);margin:0 0 10px">As 500 exclusões mais recentes, com justificativa, usuário e dados do registro.</p>
-  <div id="deletionAuditList"><div class="empty">Carregando exclusões...</div></div>
+  <p style="color:var(--mut);margin:0 0 10px">Consulte as exclusões mais recentes por registro, responsável e período.</p>
+  <div class="audit-toolbar" role="search" aria-label="Filtros do histórico de exclusões">
+    <input id="auditSearch" type="search" placeholder="Buscar registro ou justificativa">
+    <select id="auditCollection" aria-label="Filtrar por tipo de registro">
+      <option value="">Todos os tipos</option>
+      <option value="lancamentos">Lançamentos</option>
+      <option value="contas">Contas</option>
+      <option value="vacas">Vacas</option>
+      <option value="bezerros">Bezerros</option>
+      <option value="config">Configurações</option>
+    </select>
+    <select id="auditUser" aria-label="Filtrar por usuário">
+      <option value="">Todos os usuários</option>
+      <option value="gabriel">Gabriel</option>
+      <option value="alipio">Alipio</option>
+    </select>
+    <input id="auditFrom" type="date" aria-label="Exclusões a partir desta data">
+    <input id="auditTo" type="date" aria-label="Exclusões até esta data">
+  </div>
+  <div class="audit-summary"><span id="auditCount" role="status">Carregando exclusões...</span><button type="button" id="clearAuditFilters" class="x" style="border:1px solid var(--bd)">Limpar filtros</button></div>
+  <div id="deletionAuditList" aria-live="polite"><div class="empty">Carregando exclusões...</div></div>
 </div>
 </section>
 </main>
@@ -943,24 +975,62 @@ let me=null,started=false;
 const ALLOWED=['gabriel','alipio'];
 const norm=s=>s.trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'');
 const cap=n=>n.charAt(0).toUpperCase()+n.slice(1);
+const auditCollectionLabels={lancamentos:'Lançamento',contas:'Conta',vacas:'Vaca',bezerros:'Bezerro',config:'Configuração'};
+let deletionEntries=[];
+function renderDeletionAudit(){
+  const query=$('auditSearch').value.trim().toLocaleLowerCase();
+  const collection=$('auditCollection').value,user=$('auditUser').value;
+  const from=$('auditFrom').value,to=$('auditTo').value;
+  const visible=deletionEntries.filter(entry=>{
+    const date=String(entry.deleted_at||'').slice(0,10);
+    const data=entry.record_data||{};
+    const recordLabel=data.desc||data.nome||data.descricao||data.value||'';
+    const searchable=[recordLabel,entry.record_id,entry.reason,entry.collection].join(' ').toLocaleLowerCase();
+    return (!query||searchable.includes(query))
+      &&(!collection||entry.collection===collection)
+      &&(!user||entry.deleted_by===user)
+      &&(!from||date>=from)
+      &&(!to||date<=to);
+  });
+  $('auditCount').textContent=`Mostrando ${visible.length} de ${deletionEntries.length} exclusões carregadas`;
+  $('deletionAuditList').innerHTML=visible.length?visible.map(entry=>{
+    const deletedAt=new Date(entry.deleted_at);
+    const formattedDate=Number.isNaN(deletedAt.getTime())?entry.deleted_at:deletedAt.toLocaleString('pt-BR');
+    const data=entry.record_data||{};
+    const recordLabel=data.desc||data.nome||data.descricao||(entry.collection==='config'?'Saldo inicial':'')||entry.record_id;
+    const collectionLabel=auditCollectionLabels[entry.collection]||entry.collection;
+    const rawData=JSON.stringify(data,null,2);
+    return `<article class="audit-entry"><div class="audit-entry-head"><div class="audit-entry-title"><strong>${esc(recordLabel)}</strong><small>${esc(collectionLabel)} · ID ${esc(entry.record_id)}</small></div><span class="audit-badge">${esc(cap(entry.deleted_by||''))}</span></div><p class="audit-reason">${esc(entry.reason)}</p><time datetime="${esc(entry.deleted_at)}">${esc(formattedDate)}</time><details><summary>Ver dados do registro excluído</summary><pre>${esc(rawData)}</pre></details></article>`;
+  }).join(''):'<div class="empty">'+(deletionEntries.length?'Nenhuma exclusão corresponde aos filtros.':'Nenhuma exclusão registrada.')+'</div>';
+}
 async function loadDeletionAudit(){
   if(me!=='alipio')return;
   const button=$('refreshDeletionAudit');
   button.disabled=true;
+  $('auditCount').textContent='Carregando exclusões...';
   $('deletionAuditList').innerHTML='<div class="empty">Carregando exclusões...</div>';
   try{
     const entries=await apiRequest('/api/deletions');
-    $('deletionAuditList').innerHTML=entries.length?entries.map(entry=>{
-      const deletedAt=new Date(entry.deleted_at);
-      const formattedDate=Number.isNaN(deletedAt.getTime())?entry.deleted_at:deletedAt.toLocaleString('pt-BR');
-      const data=JSON.stringify(entry.record_data,null,2);
-      return `<article class="audit-entry"><b>${esc(entry.collection)} · ${esc(entry.record_id)}</b><p>${esc(entry.reason)}</p><small>Excluído por ${esc(cap(entry.deleted_by))} · ${esc(formattedDate)}</small><details><summary>Dados do registro excluído</summary><pre>${esc(data)}</pre></details></article>`;
-    }).join(''):'<div class="empty">Nenhuma exclusão registrada.</div>';
+    deletionEntries=Array.isArray(entries)?entries:[];
+    renderDeletionAudit();
   }catch(error){
+    deletionEntries=[];
+    $('auditCount').textContent='Falha ao carregar o histórico';
     $('deletionAuditList').innerHTML=`<div class="empty">Não foi possível carregar as exclusões: ${esc(error.message)}</div>`;
   }finally{button.disabled=false}
 }
 $('refreshDeletionAudit').onclick=()=>void loadDeletionAudit();
+['auditSearch','auditCollection','auditUser','auditFrom','auditTo'].forEach(id=>{
+  $(id).addEventListener(id==='auditSearch'?'input':'change',renderDeletionAudit);
+});
+$('clearAuditFilters').onclick=()=>{
+  $('auditSearch').value='';
+  $('auditCollection').value='';
+  $('auditUser').value='';
+  $('auditFrom').value='';
+  $('auditTo').value='';
+  renderDeletionAudit();
+};
 function enter(n){
   me=n;$('login').hidden=true;$('who').value=cap(n);$('who').readOnly=true;
   $('deletionAuditNav').hidden=n!=='alipio';
