@@ -16,6 +16,17 @@ create table if not exists public.deletion_audit (
   deleted_at timestamptz not null default now()
 );
 
+create table if not exists public.activity_logs (
+  id bigint generated always as identity primary key,
+  username text not null check (username in ('gabriel', 'alipio')),
+  event_type text not null check (event_type in ('login', 'logout', 'click', 'change')),
+  target text not null check (length(target) between 1 and 250),
+  field_name text check (field_name is null or length(field_name) between 1 and 120),
+  created_at timestamptz not null default now()
+);
+create index if not exists activity_logs_created_at_idx
+  on public.activity_logs (created_at desc, id desc);
+
 insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
 values ('animal-photos', 'animal-photos', false, 700000, array['image/jpeg']::text[])
 on conflict (id) do update
@@ -41,6 +52,48 @@ grant all on table public.records to service_role;
 alter table public.deletion_audit enable row level security;
 revoke all on table public.deletion_audit from public, anon, authenticated;
 grant all on table public.deletion_audit to service_role;
+alter table public.activity_logs enable row level security;
+revoke all on table public.activity_logs from public, anon, authenticated;
+grant all on table public.activity_logs to service_role;
+
+create or replace function public.write_activity_logs(p_username text, p_events jsonb)
+returns integer
+language plpgsql
+set search_path = ''
+as $$
+declare
+  event_item jsonb;
+  event_type text;
+  event_target text;
+  event_field text;
+  inserted_count integer := 0;
+begin
+  if p_username is null or p_username not in ('gabriel', 'alipio')
+    or jsonb_typeof(p_events) is distinct from 'array'
+    or jsonb_array_length(p_events) < 1 or jsonb_array_length(p_events) > 100 then
+    raise exception 'Invalid activity log batch';
+  end if;
+
+  for event_item in select value from jsonb_array_elements(p_events) as entry(value) loop
+    event_type := event_item ->> 'type';
+    event_target := event_item ->> 'target';
+    event_field := event_item ->> 'field';
+    if event_type is null or event_type not in ('login', 'logout', 'click', 'change')
+      or event_target is null or length(event_target) not between 1 and 250
+      or (event_field is not null and length(event_field) not between 1 and 120) then
+      raise exception 'Invalid activity log event';
+    end if;
+
+    insert into public.activity_logs (username, event_type, target, field_name)
+    values (p_username, event_type, event_target, event_field);
+    inserted_count := inserted_count + 1;
+  end loop;
+
+  return inserted_count;
+end;
+$$;
+revoke all on function public.write_activity_logs(text, jsonb) from public, anon, authenticated;
+grant execute on function public.write_activity_logs(text, jsonb) to service_role;
 
 create or replace function public.delete_record(
   p_collection text,

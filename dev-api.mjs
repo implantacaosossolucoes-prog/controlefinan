@@ -7,6 +7,7 @@ const sessions = new Map();
 const records = new Map([...collections].map(name => [name, new Map()]));
 const calfPhotos = new Map();
 const deletionAudit = [];
+const activityLogs = [];
 const password = process.env.LOCAL_DEMO_PASSWORD || 'teste123';
 
 function send(response, status, payload, headers = {}) {
@@ -58,6 +59,14 @@ export default async function devApiHandler(request, response) {
       if (!users.has(body.username) || typeof body.password !== 'string' || body.password !== password) {
         return send(response, 401, { error: 'Usuário ou senha inválidos.' });
       }
+      activityLogs.push({
+        id: activityLogs.length + 1,
+        username: body.username,
+        event_type: 'login',
+        target: 'login',
+        field_name: null,
+        created_at: new Date().toISOString()
+      });
       const token = randomUUID();
       sessions.set(token, body.username);
       return send(response, 200, { username: body.username }, {
@@ -70,7 +79,18 @@ export default async function devApiHandler(request, response) {
         .map(value => value.trim())
         .find(value => value.startsWith(`${cookieName}=`))
         ?.slice(cookieName.length + 1);
-      if (token) sessions.delete(token);
+      const username = token ? sessions.get(token) : null;
+      if (username) {
+        activityLogs.push({
+          id: activityLogs.length + 1,
+          username,
+          event_type: 'logout',
+          target: 'logout',
+          field_name: null,
+          created_at: new Date().toISOString()
+        });
+        sessions.delete(token);
+      }
       return send(response, 200, { ok: true }, { 'Set-Cookie': cookie('', 0, secure) });
     }
 
@@ -82,6 +102,36 @@ export default async function devApiHandler(request, response) {
     }
 
     if (!sessionFor(request)) return send(response, 401, { error: 'Sua sessão expirou. Entre novamente.' });
+
+    if (route === 'activity') {
+      const username = sessionFor(request);
+      if (request.method === 'POST') {
+        const body = await parseBody(request);
+        if (!Array.isArray(body.events) || body.events.length < 1 || body.events.length > 100
+          || body.events.some(event => !event || typeof event !== 'object' || Array.isArray(event)
+            || !['click', 'change'].includes(event.type)
+            || typeof event.target !== 'string' || !event.target.trim() || event.target.length > 250
+            || (event.field !== undefined && (typeof event.field !== 'string'
+              || !event.field.trim() || event.field.length > 120)))) {
+          return send(response, 400, { error: 'O lote de atividades contém eventos inválidos.' });
+        }
+        for (const event of body.events) {
+          activityLogs.push({
+            id: activityLogs.length + 1,
+            username,
+            event_type: event.type,
+            target: event.target.trim(),
+            field_name: event.field?.trim() || null,
+            created_at: new Date().toISOString()
+          });
+        }
+        return send(response, 200, { logged: body.events.length });
+      }
+      if (request.method === 'GET') {
+        if (username !== 'alipio') return send(response, 403, { error: 'Somente o usuário Alipio pode consultar os logs.' });
+        return send(response, 200, activityLogs.slice(-1000).reverse());
+      }
+    }
 
     if (request.method === 'GET' && route === 'deletions') {
       if (sessionFor(request) !== 'alipio') {

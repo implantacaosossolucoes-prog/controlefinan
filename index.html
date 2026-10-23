@@ -135,8 +135,14 @@ button:disabled{cursor:wait;opacity:.6}
 .audit-entry details{margin-top:10px}
 .audit-entry summary{color:var(--ac);cursor:pointer;font-size:13px}
 .audit-entry pre{overflow:auto;max-height:240px;margin:8px 0 0;padding:10px;border-radius:8px;background:var(--bg);font-size:12px;white-space:pre-wrap;overflow-wrap:anywhere}
+.activity-entry{display:grid;grid-template-columns:minmax(120px,auto) minmax(0,1fr) auto;align-items:start;gap:10px;padding:12px 0;border-top:1px solid var(--bd)}
+.activity-entry:first-child{border-top:0}
+.activity-entry time,.activity-entry small{color:var(--mut)}
+.activity-target{min-width:0;overflow-wrap:anywhere}
+.activity-field{display:block;color:var(--mut);font-size:12px}
 @media(max-width:850px){.audit-toolbar{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media(max-width:480px){.audit-toolbar{grid-template-columns:minmax(0,1fr)}.audit-entry-head{flex-direction:column}.audit-summary{align-items:flex-start;flex-direction:column}}
+@media(max-width:560px){.activity-entry{grid-template-columns:minmax(0,1fr);gap:3px}}
 #askIn{background:#15803d}#askOut{background:#dc2626}
 #editor{position:fixed;inset:0;background:rgba(0,0,0,.5);display:flex;align-items:center;justify-content:center;z-index:35;padding:16px}
 #editor[hidden]{display:none}
@@ -230,6 +236,7 @@ button:disabled{cursor:wait;opacity:.6}
       </div>
     </div>
     <button class="nav-item" id="deletionAuditNav" type="button" data-view="deletions" hidden><span class="nav-icon" aria-hidden="true">▤</span>Exclusões</button>
+    <button class="nav-item" id="activityLogNav" type="button" data-view="activity" hidden><span class="nav-icon" aria-hidden="true">◷</span>Logs do sistema</button>
   </nav>
 </aside>
 <div class="app-main">
@@ -424,6 +431,32 @@ button:disabled{cursor:wait;opacity:.6}
   <div id="deletionAuditList" aria-live="polite"><div class="empty">Carregando exclusões...</div></div>
 </div>
 </section>
+
+<section class="workspace-view" id="view-activity" data-view-panel="activity" hidden>
+<div class="card">
+  <div class="top"><h2>Logs do sistema</h2><button type="button" id="refreshActivityLogs" class="secondary-button">Atualizar</button></div>
+  <p style="color:var(--mut);margin:0 0 10px">Entradas, saídas, cliques e campos alterados. Valores digitados e conteúdo de arquivos não são armazenados.</p>
+  <div class="audit-toolbar" role="search" aria-label="Filtros dos logs do sistema">
+    <input id="activitySearch" type="search" placeholder="Buscar no destino ou campo">
+    <select id="activityType" aria-label="Filtrar por evento">
+      <option value="">Todos os eventos</option>
+      <option value="login">Entrada</option>
+      <option value="logout">Saída</option>
+      <option value="click">Clique</option>
+      <option value="change">Alteração de campo</option>
+    </select>
+    <select id="activityUser" aria-label="Filtrar por usuário">
+      <option value="">Todos os usuários</option>
+      <option value="gabriel">Gabriel</option>
+      <option value="alipio">Alipio</option>
+    </select>
+    <input id="activityFrom" type="date" aria-label="Logs a partir desta data">
+    <input id="activityTo" type="date" aria-label="Logs até esta data">
+  </div>
+  <div class="audit-summary"><span id="activityCount" role="status">Carregando logs...</span><button type="button" id="clearActivityFilters" class="x" style="border:1px solid var(--bd)">Limpar filtros</button></div>
+  <div id="activityLogList" aria-live="polite"><div class="empty">Carregando logs...</div></div>
+</div>
+</section>
 </main>
 </div>
 </div>
@@ -447,9 +480,9 @@ button:disabled{cursor:wait;opacity:.6}
 import { buildCsv, calculateFinance, prepareBackup } from '/shared/data.js';
 
 const $=id=>document.getElementById(id);
-const viewTitles={dashboard:'Dashboard',movements:'Lançamentos',finance:'Financeiro',cows:'Vacas: cio e parto',calves:'Bezerros',deletions:'Histórico de exclusões'};
+const viewTitles={dashboard:'Dashboard',movements:'Lançamentos',finance:'Financeiro',cows:'Vacas: cio e parto',calves:'Bezerros',deletions:'Histórico de exclusões',activity:'Logs do sistema'};
 function selectView(view){
-  if(!viewTitles[view]||(view==='deletions'&&me!=='alipio'))return;
+  if(!viewTitles[view]||(['deletions','activity'].includes(view)&&me!=='alipio'))return;
   document.querySelectorAll('[data-view-panel]').forEach(panel=>{panel.hidden=panel.dataset.viewPanel!==view});
   document.querySelectorAll('.nav-item[data-view]').forEach(button=>{
     const active=button.dataset.view===view;
@@ -465,6 +498,7 @@ function selectView(view){
   livestockSubmenu.hidden=!livestockSelected;
   $('viewTitle').textContent=viewTitles[view];
   if(view==='deletions')void loadDeletionAudit();
+  if(view==='activity')void loadActivityLogs();
 }
 document.querySelector('.side-nav').addEventListener('click',event=>{
   const toggle=event.target.closest('[data-menu-toggle="livestock"]');
@@ -977,6 +1011,8 @@ const norm=s=>s.trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g
 const cap=n=>n.charAt(0).toUpperCase()+n.slice(1);
 const auditCollectionLabels={lancamentos:'Lançamento',contas:'Conta',vacas:'Vaca',bezerros:'Bezerro',config:'Configuração'};
 let deletionEntries=[];
+const activityTypeLabels={login:'Entrada',logout:'Saída',click:'Clique',change:'Alteração'};
+let activityEntries=[];
 function renderDeletionAudit(){
   const query=$('auditSearch').value.trim().toLocaleLowerCase();
   const collection=$('auditCollection').value,user=$('auditUser').value;
@@ -1031,16 +1067,66 @@ $('clearAuditFilters').onclick=()=>{
   $('auditTo').value='';
   renderDeletionAudit();
 };
+function renderActivityLogs(){
+  const query=$('activitySearch').value.trim().toLocaleLowerCase();
+  const type=$('activityType').value,user=$('activityUser').value;
+  const from=$('activityFrom').value,to=$('activityTo').value;
+  const visible=activityEntries.filter(entry=>{
+    const date=String(entry.created_at||'').slice(0,10);
+    const searchable=[entry.target,entry.field_name,entry.event_type].join(' ').toLocaleLowerCase();
+    return (!query||searchable.includes(query))
+      &&(!type||entry.event_type===type)
+      &&(!user||entry.username===user)
+      &&(!from||date>=from)
+      &&(!to||date<=to);
+  });
+  $('activityCount').textContent=`Mostrando ${visible.length} de ${activityEntries.length} logs carregados`;
+  $('activityLogList').innerHTML=visible.length?visible.map(entry=>{
+    const createdAt=new Date(entry.created_at);
+    const formattedDate=Number.isNaN(createdAt.getTime())?entry.created_at:createdAt.toLocaleString('pt-BR');
+    const label=activityTypeLabels[entry.event_type]||entry.event_type;
+    return `<article class="activity-entry"><span class="audit-badge">${esc(label)}</span><div class="activity-target"><strong>${esc(entry.target)}</strong>${entry.field_name?`<small class="activity-field">Campo: ${esc(entry.field_name)}</small>`:''}</div><small>${esc(cap(entry.username||''))} · ${esc(formattedDate)}</small></article>`;
+  }).join(''):'<div class="empty">'+(activityEntries.length?'Nenhum log corresponde aos filtros.':'Nenhum log registrado.')+'</div>';
+}
+async function loadActivityLogs(){
+  if(me!=='alipio')return;
+  const button=$('refreshActivityLogs');
+  button.disabled=true;
+  $('activityCount').textContent='Carregando logs...';
+  $('activityLogList').innerHTML='<div class="empty">Carregando logs...</div>';
+  try{
+    const entries=await apiRequest('/api/activity');
+    activityEntries=Array.isArray(entries)?entries:[];
+    renderActivityLogs();
+  }catch(error){
+    activityEntries=[];
+    $('activityCount').textContent='Falha ao carregar os logs';
+    $('activityLogList').innerHTML=`<div class="empty">Não foi possível carregar os logs: ${esc(error.message)}</div>`;
+  }finally{button.disabled=false}
+}
+$('refreshActivityLogs').onclick=()=>void loadActivityLogs();
+['activitySearch','activityType','activityUser','activityFrom','activityTo'].forEach(id=>{
+  $(id).addEventListener(id==='activitySearch'?'input':'change',renderActivityLogs);
+});
+$('clearActivityFilters').onclick=()=>{
+  $('activitySearch').value='';
+  $('activityType').value='';
+  $('activityUser').value='';
+  $('activityFrom').value='';
+  $('activityTo').value='';
+  renderActivityLogs();
+};
 function enter(n){
   me=n;$('login').hidden=true;$('who').value=cap(n);$('who').readOnly=true;
   $('deletionAuditNav').hidden=n!=='alipio';
+  $('activityLogNav').hidden=n!=='alipio';
   $('me').innerHTML=`Logado como <b>${cap(n)}</b> <button id="lout" class="x">Sair</button>`;
   void startApp().catch(error=>note(error.message));
 }
 $('me').onclick=async e=>{
   if(e.target.id!=='lout')return;
-  try{await apiRequest('/api/logout',{method:'POST'});location.reload()}
-  catch(error){note('Não foi possível encerrar a sessão. Tente novamente.')}
+  try{await flushActivity();await apiRequest('/api/logout',{method:'POST'});location.reload()}
+  catch(error){note('Não foi possível registrar as atividades e encerrar a sessão: '+error.message)}
 };
 $('lgo').onclick=async()=>{
   const n=norm($('luser').value),p=$('lpass').value;
@@ -1163,6 +1249,76 @@ async function apiRequest(url,options={}){
   }
   return payload;
 }
+const pendingActivity=[];
+let activityFlushTimer=null,activityFlushPromise=null;
+function scheduleActivityFlush(delay=400){
+  if(activityFlushTimer||!pendingActivity.length)return;
+  activityFlushTimer=setTimeout(()=>{
+    activityFlushTimer=null;
+    void flushActivity().catch(error=>console.error('Failed to record activity log:',error));
+  },delay);
+}
+async function flushActivity(keepalive=false){
+  if(activityFlushPromise){
+    await activityFlushPromise;
+    if(pendingActivity.length)return flushActivity(keepalive);
+    return;
+  }
+  if(!me||!pendingActivity.length)return;
+  const batch=pendingActivity.splice(0,100);
+  activityFlushPromise=(async()=>{
+    try{
+      await apiRequest('/api/activity',{
+        method:'POST',
+        keepalive,
+        body:JSON.stringify({events:batch})
+      });
+    }catch(error){
+      pendingActivity.unshift(...batch);
+      note('Não foi possível registrar os logs de atividade. O app tentará novamente: '+error.message);
+      scheduleActivityFlush(5000);
+      throw error;
+    }
+  })();
+  try{await activityFlushPromise}
+  finally{activityFlushPromise=null}
+  if(pendingActivity.length)scheduleActivityFlush(0);
+}
+function describeActivityTarget(target){
+  const parts=[];
+  let element=target;
+  for(let depth=0;element&&depth<4;depth++,element=element.parentElement){
+    const id=element.id?`#${element.id}`:'';
+    const classes=[...element.classList].slice(0,3).map(name=>`.${name}`).join('');
+    const view=element.dataset.view?`[view=${element.dataset.view}]`:'';
+    const title=element.getAttribute('title');
+    parts.push(`${element.tagName.toLowerCase()}${id}${classes}${view}${title?`{${title}}`:''}`);
+  }
+  return parts.join(' < ').slice(0,250)||'element';
+}
+document.addEventListener('click',event=>{
+  if(!me||!(event.target instanceof Element))return;
+  pendingActivity.push({type:'click',target:describeActivityTarget(event.target)});
+  if(pendingActivity.length>=100)void flushActivity().catch(error=>console.error('Failed to record activity log:',error));
+  else scheduleActivityFlush();
+},true);
+document.addEventListener('change',event=>{
+  if(!me||!(event.target instanceof HTMLInputElement||event.target instanceof HTMLSelectElement||event.target instanceof HTMLTextAreaElement))return;
+  const field=event.target;
+  if(field instanceof HTMLInputElement&&['password','file'].includes(field.type))return;
+  const fieldName=field.id||field.name||field.getAttribute('aria-label')||field.getAttribute('placeholder')||field.tagName.toLowerCase();
+  pendingActivity.push({
+    type:'change',
+    target:`${field.tagName.toLowerCase()}#${field.id||field.name||'field'}`.slice(0,250),
+    field:fieldName.slice(0,120)
+  });
+  if(pendingActivity.length>=100)void flushActivity().catch(error=>console.error('Failed to record activity log:',error));
+  else scheduleActivityFlush();
+},true);
+window.addEventListener('pagehide',()=>{
+  if(activityFlushTimer){clearTimeout(activityFlushTimer);activityFlushTimer=null}
+  void flushActivity(true).catch(error=>console.error('Failed to record activity log during page exit:',error));
+});
 function createSharedDb(){
   const subscriptions=new Set();
   let loading=false,timer=null;

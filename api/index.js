@@ -164,7 +164,7 @@ async function supabaseRequest(path, options = {}) {
   if (!key.startsWith('sb_secret_')) {
     headers.Authorization = `Bearer ${key}`;
   }
-  const endpoint = path.startsWith('/rpc/') || path.startsWith('/deletion_audit')
+  const endpoint = path.startsWith('/rpc/') || path.startsWith('/deletion_audit') || path.startsWith('/activity_logs')
     ? `${url}/rest/v1${path}`
     : `${url}/rest/v1/records${path}`;
   const response = await fetch(endpoint, {
@@ -266,6 +266,14 @@ function validCollection(value) {
   return typeof value === 'string' && collections.has(value);
 }
 
+async function writeActivityLogs(username, events) {
+  await supabaseRequest('/rpc/write_activity_logs', {
+    method: 'POST',
+    headers: { Prefer: 'return=minimal' },
+    body: JSON.stringify({ p_username: username, p_events: events })
+  });
+}
+
 export default async function handler(request, response) {
   const pathname = new URL(request.url, 'http://localhost').pathname;
   const params = new URL(request.url, 'http://localhost').searchParams;
@@ -278,6 +286,7 @@ export default async function handler(request, response) {
       session: ['GET'],
       records: ['GET', 'POST', 'PUT', 'DELETE'],
       deletions: ['GET'],
+      activity: ['GET', 'POST'],
       restore: ['POST'],
       'pay-bill': ['POST'],
       'calf-photos': ['GET', 'POST']
@@ -297,6 +306,7 @@ export default async function handler(request, response) {
       if (!['gabriel', 'alipio'].includes(username) || !verifyPassword(username, password)) {
         return send(response, 401, { error: 'Usuário ou senha inválidos.' });
       }
+      await writeActivityLogs(username, [{ type: 'login', target: 'login' }]);
       const token = makeSession(username);
       return send(response, 200, { username }, {
         'Set-Cookie': cookie(token, sessionDuration, request)
@@ -304,6 +314,8 @@ export default async function handler(request, response) {
     }
 
     if (request.method === 'POST' && route === 'logout') {
+      const session = getSession(request);
+      if (session) await writeActivityLogs(session.username, [{ type: 'logout', target: 'logout' }]);
       return send(response, 200, { ok: true }, { 'Set-Cookie': cookie('', 0, request) });
     }
 
@@ -316,6 +328,37 @@ export default async function handler(request, response) {
 
     const session = getSession(request);
     if (!session) return send(response, 401, { error: 'Sua sessão expirou. Entre novamente.' });
+
+    if (route === 'activity') {
+      if (request.method === 'POST') {
+        const body = await parseBody(request);
+        if (!Array.isArray(body.events) || body.events.length < 1 || body.events.length > 100
+          || body.events.some(event => !event || typeof event !== 'object' || Array.isArray(event)
+            || !['click', 'change'].includes(event.type)
+            || typeof event.target !== 'string' || !event.target.trim() || event.target.length > 250
+            || (event.field !== undefined && (typeof event.field !== 'string'
+              || !event.field.trim() || event.field.length > 120)))) {
+          return send(response, 400, { error: 'O lote de atividades contém eventos inválidos.' });
+        }
+        const events = body.events.map(event => ({
+          type: event.type,
+          target: event.target.trim(),
+          ...(event.field ? { field: event.field.trim() } : {})
+        }));
+        await writeActivityLogs(session.username, events);
+        return send(response, 200, { logged: events.length });
+      }
+      if (session.username !== 'alipio') {
+        return send(response, 403, { error: 'Somente o usuário Alipio pode consultar os logs.' });
+      }
+      const query = new URLSearchParams({
+        select: 'id,username,event_type,target,field_name,created_at',
+        order: 'created_at.desc,id.desc',
+        limit: '1000'
+      });
+      const entries = await supabaseRequest(`/activity_logs?${query}`);
+      return send(response, 200, entries);
+    }
 
     if (route === 'deletions') {
       if (request.method !== 'GET') {

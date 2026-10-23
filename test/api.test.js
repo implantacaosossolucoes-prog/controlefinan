@@ -34,13 +34,95 @@ async function request(method, url, body, cookie = '', headers = {}) {
 }
 
 async function loginCookie(username = 'gabriel') {
-  const response = await request('POST', '/api/login', {
-    username,
-    password: username === 'gabriel' ? 'secret-gabriel' : 'secret-alipio'
-  });
-  assert.equal(response.statusCode, 200);
-  return response.headers['set-cookie'].split(';')[0];
+  const previousFetch = globalThis.fetch;
+  globalThis.fetch = async (url, options) => {
+    if (String(url).endsWith('/rpc/write_activity_logs')) return new Response(null, { status: 204 });
+    return previousFetch(url, options);
+  };
+  try {
+    const response = await request('POST', '/api/login', {
+      username,
+      password: username === 'gabriel' ? 'secret-gabriel' : 'secret-alipio'
+    });
+    assert.equal(response.statusCode, 200);
+    return response.headers['set-cookie'].split(';')[0];
+  } finally {
+    globalThis.fetch = previousFetch;
+  }
 }
+
+test('successful login and logout are written to the activity log', async () => {
+  const previousFetch = globalThis.fetch;
+  const calls = [];
+  globalThis.fetch = async (url, options) => {
+    calls.push({ url: String(url), options });
+    return new Response(null, { status: 204 });
+  };
+  try {
+    const login = await request('POST', '/api/login', {
+      username: 'alipio',
+      password: 'secret-alipio'
+    });
+    assert.equal(login.statusCode, 200);
+    const cookie = login.headers['set-cookie'].split(';')[0];
+    assert.match(calls[0].url, /\/rest\/v1\/rpc\/write_activity_logs$/);
+    assert.deepEqual(JSON.parse(calls[0].options.body), {
+      p_username: 'alipio',
+      p_events: [{ type: 'login', target: 'login' }]
+    });
+
+    const logout = await request('POST', '/api/logout', undefined, cookie);
+    assert.equal(logout.statusCode, 200);
+    assert.deepEqual(JSON.parse(calls[1].options.body), {
+      p_username: 'alipio',
+      p_events: [{ type: 'logout', target: 'logout' }]
+    });
+  } finally {
+    globalThis.fetch = previousFetch;
+  }
+});
+
+test('activity batches use the authenticated user and logs are readable only by Alipio', async () => {
+  const cookie = await loginCookie();
+  const alipioCookie = await loginCookie('alipio');
+  const previousFetch = globalThis.fetch;
+  const calls = [];
+  globalThis.fetch = async (url, options) => {
+    calls.push({ url: String(url), options });
+    return new Response(JSON.stringify([]), {
+      status: 200,
+      headers: { 'Content-Type': 'application/json' }
+    });
+  };
+  try {
+    const saved = await request('POST', '/api/activity', {
+      events: [
+        { type: 'click', target: 'button#save' },
+        { type: 'change', target: 'input#amount', field: 'amount', value: 'should not be forwarded' }
+      ]
+    }, cookie);
+    assert.equal(saved.statusCode, 200);
+    assert.deepEqual(JSON.parse(calls[0].options.body), {
+      p_username: 'gabriel',
+      p_events: [
+        { type: 'click', target: 'button#save' },
+        { type: 'change', target: 'input#amount', field: 'amount' }
+      ]
+    });
+
+    const denied = await request('GET', '/api/activity', undefined, cookie);
+    assert.equal(denied.statusCode, 403);
+    assert.equal(calls.length, 1);
+
+    const alipio = await request('GET', '/api/activity', undefined, alipioCookie);
+    assert.equal(alipio.statusCode, 200);
+    assert.deepEqual(alipio.json(), []);
+    assert.match(calls[1].url, /\/rest\/v1\/activity_logs\?/);
+    assert.match(calls[1].url, /limit=1000/);
+  } finally {
+    globalThis.fetch = previousFetch;
+  }
+});
 
 test('record deletion requires a reason and records its authenticated actor transactionally', async () => {
   const cookie = await loginCookie();
