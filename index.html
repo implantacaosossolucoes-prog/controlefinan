@@ -186,10 +186,10 @@ button:disabled{cursor:wait;opacity:.6}
   .app-shell{display:block}
   .sidebar{position:static;width:auto;height:auto;padding:10px 12px;gap:10px}
   .sidebar-brand{font-size:15px}
-  .side-nav{flex-direction:row;gap:5px;overflow-x:auto;padding-bottom:2px}
-  .nav-item{width:auto;flex:none;white-space:nowrap;padding:9px}
-  .nav-group{position:relative;flex:none}
-  .nav-submenu{position:static;flex-direction:row;min-width:0;padding:0;background:transparent;border:0;border-radius:0;box-shadow:none}
+  .side-nav{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:5px;overflow:visible;padding-bottom:2px}
+  .nav-item{width:100%;min-width:0;white-space:normal;padding:9px}
+  .nav-group{position:relative;grid-column:1/-1;min-width:0}
+  .nav-submenu{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));position:static;min-width:0;padding:0;background:transparent;border:0;border-radius:0;box-shadow:none}
   .nav-subitem{width:100%}
   .app-main{padding:12px}
   .page-header{align-items:center}
