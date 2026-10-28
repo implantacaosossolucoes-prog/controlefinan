@@ -75,6 +75,13 @@ input,select{flex:1 1 130px}
 .calf-photo-open:focus-visible{outline:2px solid var(--ac);outline-offset:2px}
 #calfPhotoViewer{position:fixed;inset:0;width:100vw;height:100vh;height:100dvh;max-width:none;max-height:none;margin:0;padding:0;border:0;background:#000;color:#fff}
 #calfPhotoViewer::backdrop{background:#000}
+#cowCalvingDialog{width:min(420px,calc(100% - 32px));max-width:none;padding:18px;border:1px solid var(--bd);border-radius:14px;background:var(--card);color:var(--tx)}
+#cowCalvingDialog::backdrop{background:rgba(0,0,0,.5)}
+#cowCalvingDialog h2{margin:0 0 8px;font-size:18px}
+#cowCalvingDialog p{margin:0 0 12px;color:var(--mut)}
+#cowCalvingDialog textarea{display:block;width:100%;min-height:110px;margin-bottom:12px;resize:vertical}
+.cow-calving-actions{display:flex;justify-content:flex-end;gap:8px}
+#cowCalvingSave{background:var(--ac);color:#fff;border-color:var(--ac);font-weight:600}
 #calfPhotoViewer figure{display:flex;width:100%;height:100%;align-items:center;justify-content:center;margin:0}
 #calfPhotoViewer img{display:block;width:100%;height:100%;object-fit:contain}
 #calfPhotoClose{position:absolute;top:calc(env(safe-area-inset-top,0px) + 12px);right:calc(env(safe-area-inset-right,0px) + 12px);z-index:1;width:44px;height:44px;padding:0;border:1px solid #ffffff66;border-radius:50%;background:#111c;color:#fff;font-size:28px;line-height:1;cursor:pointer}
@@ -84,6 +91,12 @@ input,select{flex:1 1 130px}
 .alert-row:first-child{border-top:0}
 .alert-row small{color:var(--mut)}
 .alert-row.urgent{color:var(--out);font-weight:600}
+.cow-calving{min-height:42px;padding:9px 14px;border:1px solid #15803d;border-radius:10px;background:#15803d;color:#fff;font-size:13px;font-weight:650;box-shadow:0 2px 5px #15803d2b;transition:background-color .15s ease,transform .15s ease}
+.cow-calving::before{content:"✓";margin-right:7px;font-size:15px}
+.cow-calving:hover{background:#166534;border-color:#166534;transform:translateY(-1px)}
+.cow-calving:active{transform:translateY(0)}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]) .cow-calving{background:#166534;border-color:#15803d}}
+:root[data-theme="dark"] .cow-calving{background:#166534;border-color:#15803d}
 .record-edit{color:var(--ac)}
 #backupFile{display:none}
 #initRow{display:flex;align-items:center;gap:8px;margin:8px 2px 0;color:var(--mut);font-size:13px}
@@ -359,6 +372,7 @@ input,select{flex:1 1 130px}
 <div id="ask" hidden><div class="box"><p>Este lançamento é:</p><div class="s2"><button id="askIn">＋ Entrada</button><button id="askOut">－ Saída</button></div><button id="askCancel" class="x">Cancelar</button></div></div>
 <div id="editor" hidden><form class="box" id="editorForm"><h2 id="editorTitle">Editar registro</h2><div id="editorFields"></div><div class="editor-actions"><button type="button" id="editorCancel" class="secondary-button">Cancelar</button><button type="submit" id="editorSave">Salvar alterações</button></div></form></div>
 <input id="photoReplaceInput" type="file" accept="image/*" capture="environment" hidden>
+<dialog id="cowCalvingDialog" aria-labelledby="cowCalvingTitle"><form id="cowCalvingForm"><h2 id="cowCalvingTitle">Registrar parto</h2><p id="cowCalvingCow"></p><label for="calfObservations">Observações do bezerro (opcional)</label><textarea id="calfObservations" maxlength="2000" placeholder="Ex.: sexo, cor, peso ou cuidados"></textarea><div class="cow-calving-actions"><button type="button" id="cowCalvingCancel" class="secondary-button">Cancelar</button><button type="submit" id="cowCalvingSave">Salvar parto</button></div></form></dialog>
 <dialog id="calfPhotoViewer" aria-label="Visualização da foto"><button id="calfPhotoClose" type="button" aria-label="Fechar foto">×</button><figure><img id="calfPhotoViewerImage" alt=""></figure></dialog>
 <div id="login"><div class="box">
   <img class="brand-logo" src="/logo.png" alt="Logo AgroBack">
@@ -427,6 +441,7 @@ function validateRecord(collection,data,id=''){
   if(collection==='vacas'){
     if(!data.nome.trim())return 'Informe o nome ou brinco da vaca.';
     if(data.touro!==undefined&&(typeof data.touro!=='string'||data.touro.length>500))return 'O nome ou brinco do touro deve ter até 500 caracteres.';
+    if(data.observacoesBezerro!==undefined&&(typeof data.observacoesBezerro!=='string'||data.observacoesBezerro.length>2000))return 'As observações do bezerro devem ter até 2.000 caracteres.';
     if(!notFuture(data.cio))return 'A data do cio deve ser válida e não pode estar no futuro.';
     if(data.partoRealizado!==undefined&&data.partoRealizado!==''&&!notFuture(data.partoRealizado))return 'A data do parto deve ser válida e não pode estar no futuro.';
     const duplicate=cows.some(c=>c.id!==id&&(c.nome||'').trim().toLocaleLowerCase()===data.nome.trim().toLocaleLowerCase());
@@ -554,7 +569,7 @@ function renderCows(){
     const dryDays=Math.round((new Date(dryOff+'T00:00:00')-new Date(t+'T00:00:00'))/864e5);
     const dryStatus=n<0?'Data prevista de parto passou':dryDays>1?'Secar em '+dryDays+' dias':dryDays===1?'Secar amanhã':dryDays===0?'Secar hoje':'Secagem atrasada há '+(-dryDays)+((-dryDays)===1?' dia':' dias');
     const dryClass=n>=0&&dryDays<=0?'late':'';
-    return `<div class="bill"><div class="d"><div>🐄 ${esc(c.nome||'(sem nome)')}</div>${c.touro?`<small>Touro: ${esc(c.touro)}</small><br>`:''}<small>Cio: ${dd(c.cio)} · Parto previsto: <b>${dd(c.parto)}</b></small>${c.partoRealizado?`<br><small>Parto registrado: <b>${dd(c.partoRealizado)}</b></small>`:`<br><small class="${n<=30?'late':''}">${st}</small><br><small class="${dryClass}">Secagem: ${dd(dryOff)} · ${dryStatus}</small>`}</div>${canWrite?`${c.partoRealizado?'':`<button class="cow-calving x" data-id="${esc(c.id)}" title="Registrar parto">Registrar parto</button>`}<button class="record-edit x" data-id="${esc(c.id)}" title="Editar vaca" aria-label="Editar vaca">✎</button><button class="cx x" data-id="${esc(c.id)}" title="Remover">✕</button>`:''}</div>`}).join(''):'<div class="empty">'+(cows.length?'Nenhuma vaca corresponde aos filtros.':'Nenhuma vaca registrada.')+'</div>';
+    return `<div class="bill"><div class="d"><div>🐄 ${esc(c.nome||'(sem nome)')}</div>${c.touro?`<small>Touro: ${esc(c.touro)}</small><br>`:''}<small>Cio: ${dd(c.cio)} · Parto previsto: <b>${dd(c.parto)}</b></small>${c.partoRealizado?`<br><small>Parto registrado: <b>${dd(c.partoRealizado)}</b></small>${c.observacoesBezerro?`<br><small>Observações do bezerro: ${esc(c.observacoesBezerro)}</small>`:''}`:`<br><small class="${n<=30?'late':''}">${st}</small><br><small class="${dryClass}">Secagem: ${dd(dryOff)} · ${dryStatus}</small>`}</div>${canWrite?`${c.partoRealizado?'':`<button class="cow-calving x" data-id="${esc(c.id)}" title="Registrar parto">Registrar parto</button>`}<button class="record-edit x" data-id="${esc(c.id)}" title="Editar vaca" aria-label="Editar vaca">✎</button><button class="cx x" data-id="${esc(c.id)}" title="Remover">✕</button>`:''}</div>`}).join(''):'<div class="empty">'+(cows.length?'Nenhuma vaca corresponde aos filtros.':'Nenhuma vaca registrada.')+'</div>';
   renderAlerts();
 }
 $('cdate').value=iso(new Date());
@@ -576,15 +591,36 @@ $('cows').addEventListener('click',async e=>{
   if(!button||!db)return;
   const cow=cows.find(item=>item.id===button.dataset.id);
   if(!cow)return;
-  button.disabled=true;
+  calvingCowId=cow.id;
+  $('cowCalvingCow').textContent=cow.nome;
+  $('calfObservations').value=cow.observacoesBezerro||'';
+  $('cowCalvingDialog').showModal();
+  $('calfObservations').focus();
+});
+let calvingCowId=null;
+$('cowCalvingCancel').onclick=()=>$('cowCalvingDialog').close();
+$('cowCalvingDialog').addEventListener('click',e=>{
+  if(e.target===$('cowCalvingDialog'))$('cowCalvingDialog').close();
+});
+$('cowCalvingDialog').addEventListener('close',()=>{calvingCowId=null});
+$('cowCalvingForm').onsubmit=async e=>{
+  e.preventDefault();
+  if(!calvingCowId||!db)return;
+  const cow=cows.find(item=>item.id===calvingCowId);
+  if(!cow){$('cowCalvingDialog').close();return}
+  const observations=$('calfObservations').value.trim();
+  const validation=validateRecord('vacas',{...cow,observacoesBezerro:observations,partoRealizado:iso(new Date())},cow.id);
+  if(validation){note(validation);return}
+  $('cowCalvingSave').disabled=true;
   try{
     const {id,...data}=cow;
-    await db.collection('vacas').doc(id).set({...data,partoRealizado:iso(new Date()),ts:Date.now()});
+    await db.collection('vacas').doc(id).set({...data,partoRealizado:iso(new Date()),observacoesBezerro:observations,ts:Date.now()});
+    $('cowCalvingDialog').close();
     note('');
     toast(`✅ Parto de ${cow.nome} registrado em ${dd(iso(new Date()))}`,'#15803d');
   }catch(error){note('Não foi possível registrar o parto: '+error.message)}
-  finally{button.disabled=false}
-});
+  finally{$('cowCalvingSave').disabled=false}
+};
 $('cadd').onclick=async()=>{
   const cio=$('cdate').value,nome=$('cname').value.trim(),touro=$('cbull').value.trim();
   const validation=validateRecord('vacas',{nome,touro,cio});
@@ -864,13 +900,13 @@ function allExportRows(){
     {tipo:'Saldo inicial',data:'',descricao:'Saldo inicial',brinco:'',categoria:'',valor:initial,status:'',responsavel:''},
     ...items.map(i=>({tipo:i.type==='in'?'Entrada':'Saída',data:i.date,descricao:i.desc||'',brinco:'',categoria:i.cat||'',valor:i.value,status:'',responsavel:i.who||''})),
     ...bills.map(b=>({tipo:'Conta a pagar',data:b.due,descricao:b.desc||'',brinco:'',categoria:'',valor:b.value,status:b.due<iso(new Date())?'Vencida':'Pendente',responsavel:''})),
-    ...cows.map(c=>({tipo:'Vaca',data:c.cio,descricao:c.nome||'',touro:c.touro||'',brinco:'',categoria:'',valor:'',data_parto:c.partoRealizado||'',status:c.partoRealizado?'Parto registrado '+dd(c.partoRealizado):'Parto previsto '+dd(c.parto),responsavel:''})),
+    ...cows.map(c=>({tipo:'Vaca',data:c.cio,descricao:c.nome||'',touro:c.touro||'',brinco:'',categoria:'',valor:'',data_parto:c.partoRealizado||'',observacoes_bezerro:c.observacoesBezerro||'',status:c.partoRealizado?'Parto registrado '+dd(c.partoRealizado):'Parto previsto '+dd(c.parto),responsavel:''})),
     ...calves.map(c=>({tipo:'Bezerro',data:c.nascimento,descricao:c.descricao||'',touro:'',brinco:c.brinco||'',categoria:'',valor:'',status:'',responsavel:''}))
   ];
 }
 $('exportCsv').onclick=()=>{
   if(!recordsLoaded){note('Aguarde a sincronização dos dados antes de exportar.');return}
-  const columns=['tipo','data','descricao','touro','brinco','categoria','valor','data_parto','status','responsavel'];
+  const columns=['tipo','data','descricao','touro','brinco','categoria','valor','data_parto','observacoes_bezerro','status','responsavel'];
   const rows=allExportRows();
   const csv=[columns.join(';'),...rows.map(row=>columns.map(key=>`"${String(row[key]??'').replaceAll('"','""')}"`).join(';'))].join('\r\n');
   downloadFile(`agroback-dados-${iso(new Date())}.csv`,'\uFEFF'+csv,'text/csv;charset=utf-8');

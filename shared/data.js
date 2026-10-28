@@ -47,6 +47,7 @@ export function validateRecordData(collection, id, data, today = new Date()) {
   } else if (collection === 'vacas') {
     const todayDate = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
     if (!validText(data.nome, true) || !validText(data.touro) || !validDate(data.cio) || !validDate(data.parto)
+      || !validText(data.observacoesBezerro, false, 2000)
       || (data.partoRealizado !== undefined && (!validDate(data.partoRealizado) || data.partoRealizado > todayDate))) return 'invalid-cow';
   } else if (!validText(data.descricao, true) || !validText(data.brinco, true)
     || !validDate(data.nascimento)

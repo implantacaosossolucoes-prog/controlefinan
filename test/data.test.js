@@ -71,7 +71,9 @@ test('cow records preserve an optional bull name through backups', () => {
     nome: 'Mimosa',
     touro: 'Touro ABC',
     cio: '2026-01-01',
-    parto: '2026-10-01'
+    parto: '2026-10-01',
+    partoRealizado: '2026-10-28',
+    observacoesBezerro: 'Fêmea, pelagem marrom'
   };
   const today = new Date(2026, 9, 28);
   assert.equal(validateRecordData('vacas', 'cow-1', cow, today), null);
@@ -83,6 +85,7 @@ test('cow records preserve an optional bull name through backups', () => {
     collections: { vacas: [{ id: 'cow-1', ...cow }] }
   }, today);
   assert.equal(restoredCow.data.touro, 'Touro ABC');
+  assert.equal(restoredCow.data.observacoesBezerro, 'Fêmea, pelagem marrom');
   assert.equal(validateRecordData('vacas', 'cow-2', {
     ...cow,
     touro: 'T'.repeat(501)
@@ -91,10 +94,7 @@ test('cow records preserve an optional bull name through backups', () => {
     ...cow,
     touro: 123
   }, today), 'invalid-cow');
-  assert.equal(validateRecordData('vacas', 'cow-3', {
-    ...cow,
-    partoRealizado: '2026-10-28'
-  }, today), null);
+  assert.equal(validateRecordData('vacas', 'cow-3', cow, today), null);
   assert.equal(validateRecordData('vacas', 'cow-4', {
     ...cow,
     partoRealizado: '2026-10-29'
@@ -102,6 +102,14 @@ test('cow records preserve an optional bull name through backups', () => {
   assert.equal(validateRecordData('vacas', 'cow-5', {
     ...cow,
     partoRealizado: '2026-02-30'
+  }, today), 'invalid-cow');
+  assert.equal(validateRecordData('vacas', 'cow-6', {
+    ...cow,
+    observacoesBezerro: 'O'.repeat(2001)
+  }, today), 'invalid-cow');
+  assert.equal(validateRecordData('vacas', 'cow-7', {
+    ...cow,
+    observacoesBezerro: 5
   }, today), 'invalid-cow');
 });
 
