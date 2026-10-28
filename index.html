@@ -359,7 +359,8 @@ button:disabled{cursor:wait;opacity:.6}
     <button id="cweek" class="x" style="border:1px solid var(--bd)">Próximos 7 dias</button>
     <button id="cmonth" class="x" style="border:1px solid var(--bd)">Próximos 30 dias</button>
     <button id="cdryoff" class="x" style="border:1px solid var(--bd)">Secagem (partos em até 60 dias)</button>
-    <button id="call" class="x" style="border:1px solid var(--bd)">Mostrar todas</button>
+    <button id="call" class="x" style="border:1px solid var(--bd)">Vacas aguardando parto</button>
+    <button id="ccalved" class="x" style="border:1px solid var(--bd)">Partos registrados</button>
   </div>
   <div id="cows" style="margin-top:8px"></div>
 </div>
@@ -702,10 +703,14 @@ const setCowRange=days=>{const d=new Date();$('cfrom').value=iso(d);d.setDate(d.
 const wk=()=>setCowRange(7);
 wk();
 $('cfrom').onchange=$('cto').onchange=renderCows;
-$('cweek').onclick=()=>{wk();renderCows()};
-$('cmonth').onclick=()=>{setCowRange(30);renderCows()};
-$('cdryoff').onclick=()=>{setCowRange(60);renderCows()};
-$('call').onclick=()=>{$('cfrom').value='';$('cto').value='';$('cowSearch').value='';$('cowStatusFilter').value='all';renderCows()};
+const setCowStatus=status=>{
+  $('cfrom').value='';$('cto').value='';$('cowSearch').value='';$('cowStatusFilter').value=status;
+};
+$('cweek').onclick=()=>{setCowStatus('pending');wk();renderCows()};
+$('cmonth').onclick=()=>{setCowStatus('pending');setCowRange(30);renderCows()};
+$('cdryoff').onclick=()=>{setCowStatus('pending');setCowRange(60);renderCows()};
+$('call').onclick=()=>{setCowStatus('pending');renderCows()};
+$('ccalved').onclick=()=>{setCowStatus('calved');renderCows()};
 $('cowStatusFilter').onchange=renderCows;
 $('cows').addEventListener('click',async e=>{
   const button=e.target.closest('.cow-calving');
