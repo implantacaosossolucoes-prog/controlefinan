@@ -45,7 +45,7 @@ export function validateRecordData(collection, id, data, today = new Date()) {
     if (!validText(data.desc, true) || !validAmount(data.value, true)
       || !validDate(data.due)) return 'invalid-bill';
   } else if (collection === 'vacas') {
-    if (!validText(data.nome, true) || !validDate(data.cio) || !validDate(data.parto)) return 'invalid-cow';
+    if (!validText(data.nome, true) || !validText(data.touro) || !validDate(data.cio) || !validDate(data.parto)) return 'invalid-cow';
   } else if (!validText(data.descricao, true) || !validText(data.brinco, true)
     || !validDate(data.nascimento)
     || data.nascimento > `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`) {

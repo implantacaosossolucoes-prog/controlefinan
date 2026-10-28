@@ -4,6 +4,7 @@ import {
   buildCsv,
   calculateFinance,
   prepareBackup,
+  validateRecordData,
   validateRestoreRecords
 } from '../shared/data.js';
 
@@ -63,6 +64,32 @@ test('backup preparation rejects invalid values and repeated identifiers', () =>
     collections: { lancamentos: [{ id: 'bad', type: 'out', value: -1, date: '2026-02-30' }] }
   }, new Date(2026, 0, 3)), /registros inválidos/);
   assert.throws(() => prepareBackup({ version: 2, collections: {} }), /Formato de backup/);
+});
+
+test('cow records preserve an optional bull name through backups', () => {
+  const cow = {
+    nome: 'Mimosa',
+    touro: 'Touro ABC',
+    cio: '2026-01-01',
+    parto: '2026-10-01'
+  };
+  assert.equal(validateRecordData('vacas', 'cow-1', cow, new Date(2026, 0, 5)), null);
+  const legacyCow = { ...cow };
+  delete legacyCow.touro;
+  assert.equal(validateRecordData('vacas', 'cow-2', legacyCow, new Date(2026, 0, 5)), null);
+  const [restoredCow] = prepareBackup({
+    version: 1,
+    collections: { vacas: [{ id: 'cow-1', ...cow }] }
+  }, new Date(2026, 0, 5));
+  assert.equal(restoredCow.data.touro, 'Touro ABC');
+  assert.equal(validateRecordData('vacas', 'cow-2', {
+    ...cow,
+    touro: 'T'.repeat(501)
+  }, new Date(2026, 0, 5)), 'invalid-cow');
+  assert.equal(validateRecordData('vacas', 'cow-2', {
+    ...cow,
+    touro: 123
+  }, new Date(2026, 0, 5)), 'invalid-cow');
 });
 
 test('valid restore batches retain distinct IDs and reject oversized or malformed batches', () => {

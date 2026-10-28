@@ -45,6 +45,7 @@ h1{font-size:22px;margin:0}
 .sum b{font-size:18px;display:block;margin-top:2px;word-break:break-word}
 .in{color:var(--in)}.out{color:var(--out)}
 .row{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:8px}
+.cow-name-fields{display:grid;flex:1 1 180px;gap:8px;min-width:0}
 input,select,button{font:inherit;color:var(--tx);background:var(--bg);border:1px solid var(--bd);border-radius:10px;padding:10px;min-width:0}
 input,select{flex:1 1 130px}
 .seg{display:flex;gap:8px;margin-bottom:8px}
@@ -268,7 +269,10 @@ input,select{flex:1 1 130px}
   <div id="cowForm">
     <div style="color:var(--mut);font-size:13px;margin-bottom:6px">O parto previsto é 9 meses depois do cio. Programe a secagem 60 dias antes.</div>
     <div class="row">
-      <input id="cname" placeholder="Nome ou brinco da vaca">
+      <div class="cow-name-fields">
+        <input id="cname" placeholder="Nome ou brinco da vaca">
+        <input id="cbull" placeholder="Nome ou brinco do touro" maxlength="500">
+      </div>
       <input id="cdate" type="date" title="Data do cio">
     </div>
     <button id="cadd">Registrar cio</button>
@@ -280,7 +284,7 @@ input,select{flex:1 1 130px}
     <input id="cto" type="date" style="flex:1 1 120px">
   </div>
   <div class="toolbar">
-    <input id="cowSearch" type="search" placeholder="Buscar vaca por nome ou brinco">
+    <input id="cowSearch" type="search" placeholder="Buscar vaca por nome, brinco ou touro">
   </div>
   <div class="row">
     <button id="cweek" class="x" style="border:1px solid var(--bd)">Próximos 7 dias</button>
@@ -416,6 +420,7 @@ function validateRecord(collection,data,id=''){
   }
   if(collection==='vacas'){
     if(!data.nome.trim())return 'Informe o nome ou brinco da vaca.';
+    if(data.touro!==undefined&&(typeof data.touro!=='string'||data.touro.length>500))return 'O nome ou brinco do touro deve ter até 500 caracteres.';
     if(!notFuture(data.cio))return 'A data do cio deve ser válida e não pode estar no futuro.';
     const duplicate=cows.some(c=>c.id!==id&&(c.nome||'').trim().toLocaleLowerCase()===data.nome.trim().toLocaleLowerCase());
     if(duplicate)return 'Já existe uma vaca cadastrada com esse nome ou brinco.';
@@ -526,7 +531,7 @@ const addD=(s,n)=>{const [y,m,d]=s.split('-').map(Number);return iso(new Date(y,
 function renderCows(){
   const t=iso(new Date());
   const query=$('cowSearch').value.trim().toLocaleLowerCase();
-  const l=[...cows].filter(c=>(!$('cfrom').value||c.parto>=$('cfrom').value)&&(!$('cto').value||c.parto<=$('cto').value)&&(!query||(c.nome||'').toLocaleLowerCase().includes(query))).sort((a,b)=>a.parto.localeCompare(b.parto));
+  const l=[...cows].filter(c=>(!$('cfrom').value||c.parto>=$('cfrom').value)&&(!$('cto').value||c.parto<=$('cto').value)&&(!query||[c.nome,c.touro].some(value=>(value||'').toLocaleLowerCase().includes(query)))).sort((a,b)=>a.parto.localeCompare(b.parto));
   $('cowCount').textContent=cows.length?l.length+' de '+cows.length+(cows.length>1?' vacas':' vaca'):'';
   $('cows').innerHTML=l.length?l.map(c=>{
     const n=Math.round((new Date(c.parto+'T00:00:00')-new Date(t+'T00:00:00'))/864e5);
@@ -535,7 +540,7 @@ function renderCows(){
     const dryDays=Math.round((new Date(dryOff+'T00:00:00')-new Date(t+'T00:00:00'))/864e5);
     const dryStatus=n<0?'Data prevista de parto passou':dryDays>1?'Secar em '+dryDays+' dias':dryDays===1?'Secar amanhã':dryDays===0?'Secar hoje':'Secagem atrasada há '+(-dryDays)+((-dryDays)===1?' dia':' dias');
     const dryClass=n>=0&&dryDays<=0?'late':'';
-    return `<div class="bill"><div class="d"><div>🐄 ${esc(c.nome||'(sem nome)')}</div><small>Cio: ${dd(c.cio)} · Parto previsto: <b>${dd(c.parto)}</b></small><br><small class="${n<=30?'late':''}">${st}</small><br><small class="${dryClass}">Secagem: ${dd(dryOff)} · ${dryStatus}</small></div>${canWrite?`<button class="record-edit x" data-id="${c.id}" title="Editar vaca" aria-label="Editar vaca">✎</button><button class="cx x" data-id="${c.id}" title="Remover">✕</button>`:''}</div>`}).join(''):'<div class="empty">'+(cows.length?'Nenhuma vaca corresponde aos filtros.':'Nenhuma vaca registrada.')+'</div>';
+    return `<div class="bill"><div class="d"><div>🐄 ${esc(c.nome||'(sem nome)')}</div>${c.touro?`<small>Touro: ${esc(c.touro)}</small><br>`:''}<small>Cio: ${dd(c.cio)} · Parto previsto: <b>${dd(c.parto)}</b></small><br><small class="${n<=30?'late':''}">${st}</small><br><small class="${dryClass}">Secagem: ${dd(dryOff)} · ${dryStatus}</small></div>${canWrite?`<button class="record-edit x" data-id="${c.id}" title="Editar vaca" aria-label="Editar vaca">✎</button><button class="cx x" data-id="${c.id}" title="Remover">✕</button>`:''}</div>`}).join(''):'<div class="empty">'+(cows.length?'Nenhuma vaca corresponde aos filtros.':'Nenhuma vaca registrada.')+'</div>';
   renderAlerts();
 }
 $('cdate').value=iso(new Date());
@@ -548,13 +553,13 @@ $('cmonth').onclick=()=>{setCowRange(30);renderCows()};
 $('cdryoff').onclick=()=>{setCowRange(60);renderCows()};
 $('call').onclick=()=>{$('cfrom').value='';$('cto').value='';$('cowSearch').value='';renderCows()};
 $('cadd').onclick=async()=>{
-  const cio=$('cdate').value,nome=$('cname').value.trim();
-  const validation=validateRecord('vacas',{nome,cio});
+  const cio=$('cdate').value,nome=$('cname').value.trim(),touro=$('cbull').value.trim();
+  const validation=validateRecord('vacas',{nome,touro,cio});
   if(validation){note(validation);return}
   if(!db){note('Faça login para acessar os dados compartilhados.');return}
   try{
-    await db.collection('vacas').add({nome,cio,parto:addM(cio,9),ts:Date.now()});
-    $('cname').value='';const pp=addM(cio,9),f=$('cfrom').value,u=$('cto').value;note((f&&pp<f)||(u&&pp>u)?'Vaca registrada, mas fora do filtro atual. Toque em "Mostrar todas" para ver.':'');
+    await db.collection('vacas').add({nome,touro,cio,parto:addM(cio,9),ts:Date.now()});
+    $('cname').value='';$('cbull').value='';const pp=addM(cio,9),f=$('cfrom').value,u=$('cto').value;note((f&&pp<f)||(u&&pp>u)?'Vaca registrada, mas fora do filtro atual. Toque em "Mostrar todas" para ver.':'');
     toast('✅ '+nome+': parto previsto em '+dd(addM(cio,9)),'#2563eb');
   }catch(err){note('Não foi possível salvar os dados da vaca: '+err.message)}
 };
@@ -769,7 +774,7 @@ function renderAlerts(){
 const editorFields={
   lancamentos:[['type','Tipo','select'],['desc','Descrição','text'],['value','Valor (R$)','number'],['cat','Categoria','text'],['date','Data','date'],['who','Responsável','text']],
   contas:[['desc','Descrição da conta','text'],['value','Valor (R$)','number'],['due','Vencimento','date']],
-  vacas:[['nome','Nome ou brinco da vaca','text'],['cio','Data do cio','date']],
+  vacas:[['nome','Nome ou brinco da vaca','text'],['touro','Nome ou brinco do touro','text','',false],['cio','Data do cio','date']],
   bezerros:[['descricao','Descrição do bezerro','text'],['nascimento','Data de nascimento','date'],['brinco','Número do brinco','text','numeric']]
 };
 const editorTitles={lancamentos:'Editar lançamento',contas:'Editar conta',vacas:'Editar vaca',bezerros:'Editar bezerro'};
@@ -777,12 +782,12 @@ function openEditor(collection,record){
   if(!canWrite)return;
   recordEditor={collection,id:record.id,data:{...record}};
   $('editorTitle').textContent=editorTitles[collection];
-  $('editorFields').innerHTML=editorFields[collection].map(([name,label,inputType,keyboardMode])=>{
+  $('editorFields').innerHTML=editorFields[collection].map(([name,label,inputType,keyboardMode,required=true])=>{
     const value=record[name]??'';
     if(inputType==='select')return `<label class="edit-field">${label}<select name="${name}" required><option value="in"${value==='in'?' selected':''}>Entrada</option><option value="out"${value==='out'?' selected':''}>Saída</option></select></label>`;
     const numberAttrs=inputType==='number'?' inputmode="decimal" min="0.01" step="0.01"':'';
     const inputMode=keyboardMode==='numeric'?' inputmode="numeric"':'';
-    return `<label class="edit-field">${label}<input name="${name}" type="${inputType}" value="${esc(value)}"${numberAttrs}${inputMode} required></label>`;
+    return `<label class="edit-field">${label}<input name="${name}" type="${inputType}" value="${esc(value)}"${numberAttrs}${inputMode}${required?' required':''}></label>`;
   }).join('');
   $('editor').hidden=false;
   $('editorFields').querySelector('input,select')?.focus();
@@ -797,7 +802,7 @@ $('editorForm').onsubmit=async e=>{
   let data;
   if(collection==='lancamentos')data={...recordEditor.data,...values,value:parseFloat(values.value),ts:Date.now()};
   else if(collection==='contas')data={...recordEditor.data,...values,value:parseFloat(values.value),ts:Date.now()};
-  else if(collection==='vacas')data={...recordEditor.data,nome:values.nome.trim(),cio:values.cio,parto:addM(values.cio,9),ts:Date.now()};
+  else if(collection==='vacas')data={...recordEditor.data,nome:values.nome.trim(),touro:values.touro.trim(),cio:values.cio,parto:addM(values.cio,9),ts:Date.now()};
   else data={...recordEditor.data,descricao:values.descricao.trim(),nascimento:values.nascimento,brinco:values.brinco.trim(),ts:Date.now()};
   const validation=validateRecord(collection,data,id);
   if(validation){note(validation);return}
@@ -822,13 +827,13 @@ function allExportRows(){
     {tipo:'Saldo inicial',data:'',descricao:'Saldo inicial',brinco:'',categoria:'',valor:initial,status:'',responsavel:''},
     ...items.map(i=>({tipo:i.type==='in'?'Entrada':'Saída',data:i.date,descricao:i.desc||'',brinco:'',categoria:i.cat||'',valor:i.value,status:'',responsavel:i.who||''})),
     ...bills.map(b=>({tipo:'Conta a pagar',data:b.due,descricao:b.desc||'',brinco:'',categoria:'',valor:b.value,status:b.due<iso(new Date())?'Vencida':'Pendente',responsavel:''})),
-    ...cows.map(c=>({tipo:'Vaca',data:c.cio,descricao:c.nome||'',brinco:'',categoria:'',valor:'',status:'Parto previsto '+dd(c.parto),responsavel:''})),
-    ...calves.map(c=>({tipo:'Bezerro',data:c.nascimento,descricao:c.descricao||'',brinco:c.brinco||'',categoria:'',valor:'',status:'',responsavel:''}))
+    ...cows.map(c=>({tipo:'Vaca',data:c.cio,descricao:c.nome||'',touro:c.touro||'',brinco:'',categoria:'',valor:'',status:'Parto previsto '+dd(c.parto),responsavel:''})),
+    ...calves.map(c=>({tipo:'Bezerro',data:c.nascimento,descricao:c.descricao||'',touro:'',brinco:c.brinco||'',categoria:'',valor:'',status:'',responsavel:''}))
   ];
 }
 $('exportCsv').onclick=()=>{
   if(!recordsLoaded){note('Aguarde a sincronização dos dados antes de exportar.');return}
-  const columns=['tipo','data','descricao','brinco','categoria','valor','status','responsavel'];
+  const columns=['tipo','data','descricao','touro','brinco','categoria','valor','status','responsavel'];
   const rows=allExportRows();
   const csv=[columns.join(';'),...rows.map(row=>columns.map(key=>`"${String(row[key]??'').replaceAll('"','""')}"`).join(';'))].join('\r\n');
   downloadFile(`agroback-dados-${iso(new Date())}.csv`,'\uFEFF'+csv,'text/csv;charset=utf-8');
