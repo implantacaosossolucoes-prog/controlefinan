@@ -73,23 +73,36 @@ test('cow records preserve an optional bull name through backups', () => {
     cio: '2026-01-01',
     parto: '2026-10-01'
   };
-  assert.equal(validateRecordData('vacas', 'cow-1', cow, new Date(2026, 0, 5)), null);
+  const today = new Date(2026, 9, 28);
+  assert.equal(validateRecordData('vacas', 'cow-1', cow, today), null);
   const legacyCow = { ...cow };
   delete legacyCow.touro;
-  assert.equal(validateRecordData('vacas', 'cow-2', legacyCow, new Date(2026, 0, 5)), null);
+  assert.equal(validateRecordData('vacas', 'cow-2', legacyCow, today), null);
   const [restoredCow] = prepareBackup({
     version: 1,
     collections: { vacas: [{ id: 'cow-1', ...cow }] }
-  }, new Date(2026, 0, 5));
+  }, today);
   assert.equal(restoredCow.data.touro, 'Touro ABC');
   assert.equal(validateRecordData('vacas', 'cow-2', {
     ...cow,
     touro: 'T'.repeat(501)
-  }, new Date(2026, 0, 5)), 'invalid-cow');
+  }, today), 'invalid-cow');
   assert.equal(validateRecordData('vacas', 'cow-2', {
     ...cow,
     touro: 123
-  }, new Date(2026, 0, 5)), 'invalid-cow');
+  }, today), 'invalid-cow');
+  assert.equal(validateRecordData('vacas', 'cow-3', {
+    ...cow,
+    partoRealizado: '2026-10-28'
+  }, today), null);
+  assert.equal(validateRecordData('vacas', 'cow-4', {
+    ...cow,
+    partoRealizado: '2026-10-29'
+  }, today), 'invalid-cow');
+  assert.equal(validateRecordData('vacas', 'cow-5', {
+    ...cow,
+    partoRealizado: '2026-02-30'
+  }, today), 'invalid-cow');
 });
 
 test('valid restore batches retain distinct IDs and reject oversized or malformed batches', () => {
