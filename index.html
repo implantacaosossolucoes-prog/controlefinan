@@ -37,6 +37,12 @@ h1{font-size:22px;margin:0}
 .page-header{display:flex;justify-content:space-between;align-items:center;gap:16px;margin:4px 0 14px}
 .page-header .eyebrow{margin:0 0 2px;color:var(--mut);font-size:12px}
 .sync-status{color:var(--mut);font-size:12px;white-space:nowrap}
+.workspace-tabs{display:flex;align-items:end;gap:3px;min-height:42px;margin-bottom:14px;overflow-x:auto;border-bottom:1px solid var(--bd)}
+.workspace-tab{display:flex;align-items:center;flex:0 0 auto;max-width:240px;border:1px solid transparent;border-bottom:0;border-radius:8px 8px 0 0;color:var(--mut)}
+.workspace-tab.is-active{border-color:var(--bd);background:var(--card);color:var(--tx)}
+.workspace-tab-select{min-width:0;overflow:hidden;padding:9px 10px;border:0;background:transparent;color:inherit;text-overflow:ellipsis;white-space:nowrap;cursor:pointer}
+.workspace-tab-close{width:30px;height:30px;flex:none;padding:0;border:0;background:transparent;color:var(--mut);cursor:pointer}
+.workspace-tab-close:hover{color:var(--out)}
 .workspace-view[hidden]{display:none}
 .card{background:var(--card);border:1px solid var(--bd);border-radius:14px;padding:14px;margin-bottom:14px}
 .sum{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px}
@@ -257,6 +263,7 @@ button:disabled{cursor:wait;opacity:.6}
   </nav>
 </aside>
 <div class="app-main">
+<div class="workspace-tabs" id="workspaceTabs" role="tablist" aria-label="Abas abertas"></div>
 <main>
 <header class="page-header"><div><p class="eyebrow">AgroBack</p><h1 id="viewTitle">Visão geral</h1></div><div style="display:flex;align-items:center;gap:12px"><small id="syncStatus" class="sync-status" role="status">Aguardando conexão</small><div id="me"></div></div></header>
 <div id="msg"></div>
@@ -508,8 +515,16 @@ import { buildCsv, calculateFinance, prepareBackup } from '/shared/data.js';
 
 const $=id=>document.getElementById(id);
 const viewTitles={dashboard:'Dashboard',movements:'Lançamentos',finance:'Financeiro',cows:'Vacas: cio e parto',calves:'Bezerros',deletions:'Histórico de exclusões',activity:'Logs do sistema'};
-function selectView(view){
+let openViews=['dashboard'],activeView='dashboard';
+function renderWorkspaceTabs(){
+  $('workspaceTabs').innerHTML=openViews.map(view=>{
+    const active=view===activeView,title=viewTitles[view];
+    return `<div class="workspace-tab${active?' is-active':''}"><button type="button" class="workspace-tab-select" role="tab" id="tab-${view}" aria-controls="view-${view}" aria-selected="${active}" tabindex="${active?'0':'-1'}" data-tab-view="${view}">${esc(title)}</button>${openViews.length>1?`<button type="button" class="workspace-tab-close" data-close-view="${view}" aria-label="Fechar aba ${esc(title)}" title="Fechar aba">×</button>`:''}</div>`;
+  }).join('');
+}
+function activateView(view){
   if(!viewTitles[view]||(['deletions','activity'].includes(view)&&me!=='alipio'))return;
+  activeView=view;
   document.querySelectorAll('[data-view-panel]').forEach(panel=>{panel.hidden=panel.dataset.viewPanel!==view});
   document.querySelectorAll('.nav-item[data-view]').forEach(button=>{
     const active=button.dataset.view===view;
@@ -526,6 +541,19 @@ function selectView(view){
   $('viewTitle').textContent=viewTitles[view];
   if(view==='deletions')void loadDeletionAudit();
   if(view==='activity')void loadActivityLogs();
+  renderWorkspaceTabs();
+}
+function selectView(view){
+  if(!viewTitles[view]||(['deletions','activity'].includes(view)&&me!=='alipio'))return;
+  if(!openViews.includes(view))openViews.push(view);
+  activateView(view);
+}
+function closeView(view){
+  const index=openViews.indexOf(view);
+  if(index<0||openViews.length===1)return;
+  openViews.splice(index,1);
+  if(activeView===view)activeView=openViews[Math.min(index,openViews.length-1)];
+  activateView(activeView);
 }
 document.querySelector('.side-nav').addEventListener('click',event=>{
   const toggle=event.target.closest('[data-menu-toggle="livestock"]');
@@ -540,6 +568,13 @@ document.querySelector('.side-nav').addEventListener('click',event=>{
 });
 const brl=n=>n.toLocaleString('pt-BR',{style:'currency',currency:'BRL'});
 const esc=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+renderWorkspaceTabs();
+document.querySelector('#workspaceTabs').addEventListener('click',event=>{
+  const close=event.target.closest('[data-close-view]');
+  if(close){closeView(close.dataset.closeView);return}
+  const tab=event.target.closest('[data-tab-view]');
+  if(tab)activateView(tab.dataset.tabView);
+});
 let type='in',items=[],db=null,canWrite=true,initial=0,editing=false,recordEditor=null,recordsLoaded=false;
 const today=new Date();
 const iso=d=>d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
