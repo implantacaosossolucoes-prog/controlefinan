@@ -302,6 +302,7 @@ button:disabled{cursor:wait;opacity:.6}
 #cropMap{width:100%;height:min(58dvh,520px);min-height:280px;margin:12px 0;border:1px solid var(--bd);border-radius:10px}
 .crop-map-actions{display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap}
 .crop-map-actions p{flex:1 1 240px;margin:0;color:var(--mut);font-size:12px}
+#cropMapArea{display:block;margin-top:5px;color:#166534;font-size:13px}
 .crop-map-buttons{display:flex;gap:8px;flex-wrap:wrap}
 .crop-toolbar{display:grid;grid-template-columns:minmax(180px,1fr) minmax(220px,2fr);gap:8px;margin:14px 0 10px}
 .crop-toolbar input,.crop-toolbar select{width:100%;min-height:42px;background:var(--card)}
@@ -530,7 +531,7 @@ button:disabled{cursor:wait;opacity:.6}
     <div id="cropPlotForm" class="crop-form">
       <div class="row crop-row-three">
         <input id="cropPlotName" maxlength="100" aria-label="Nome do talhão" placeholder="Nome do talhão">
-        <input id="cropPlotArea" type="number" inputmode="decimal" min="0.01" step="0.01" aria-label="Área do talhão em hectares" placeholder="Área (ha)">
+        <input id="cropPlotArea" type="number" inputmode="decimal" min="0.0001" step="0.0001" aria-label="Área do talhão em hectares" placeholder="Área (ha)">
         <input id="cropPlotNotes" maxlength="1000" aria-label="Observações do talhão" placeholder="Observações (opcional)">
       </div>
       <div class="crop-location">
@@ -703,7 +704,7 @@ button:disabled{cursor:wait;opacity:.6}
 <input id="photoReplaceInput" type="file" accept="image/*" capture="environment" hidden>
 <dialog id="cowCalvingDialog" aria-labelledby="cowCalvingTitle"><form id="cowCalvingForm"><h2 id="cowCalvingTitle">Registrar parto</h2><p id="cowCalvingCow"></p><label for="calfObservations">Observações do bezerro (opcional)</label><textarea id="calfObservations" maxlength="2000" placeholder="Ex.: sexo, cor, peso, número do brinco ou cuidados"></textarea><div class="cow-calving-actions"><button type="button" id="cowCalvingCancel" class="secondary-button">Cancelar</button><button type="submit" id="cowCalvingSave">Salvar parto</button></div></form></dialog>
 <dialog id="calfPhotoViewer" aria-label="Visualização da foto"><button id="calfPhotoClose" type="button" aria-label="Fechar foto">×</button><figure><img id="calfPhotoViewerImage" alt=""></figure></dialog>
-<dialog id="cropMapDialog" aria-labelledby="cropMapTitle"><h2 id="cropMapTitle">Localização e área do talhão</h2><div id="cropMap" role="application" aria-label="Mapa para marcar ou demarcar o talhão"></div><div class="crop-map-actions"><p id="cropMapStatus" role="status">Use “Desenhar área” e clique nos vértices do perímetro.</p><div class="crop-map-buttons"><button type="button" id="cropMapGeolocate" class="secondary-button">Minha localização</button><button type="button" id="cropMapDraw" class="secondary-button">Desenhar área</button><button type="button" id="cropMapFinish" class="secondary-button" hidden>Concluir desenho (0/3)</button><button type="button" id="cropMapClear" class="secondary-button">Limpar área</button><button type="button" id="cropMapCancel" class="secondary-button">Cancelar</button><button type="button" id="cropMapConfirm" class="crop-primary" disabled>Usar localização</button></div></div></dialog>
+<dialog id="cropMapDialog" aria-labelledby="cropMapTitle"><h2 id="cropMapTitle">Localização e área do talhão</h2><div id="cropMap" role="application" aria-label="Mapa para marcar ou demarcar o talhão"></div><div class="crop-map-actions"><div><p id="cropMapStatus" role="status">Use “Desenhar área” e clique nos vértices do perímetro.</p><strong id="cropMapArea" role="status" aria-live="polite">Área medida: —</strong></div><div class="crop-map-buttons"><button type="button" id="cropMapGeolocate" class="secondary-button">Minha localização</button><button type="button" id="cropMapDraw" class="secondary-button">Desenhar área</button><button type="button" id="cropMapFinish" class="secondary-button" hidden>Concluir desenho (0/3)</button><button type="button" id="cropMapClear" class="secondary-button">Limpar área</button><button type="button" id="cropMapCancel" class="secondary-button">Cancelar</button><button type="button" id="cropMapConfirm" class="crop-primary" disabled>Usar localização</button></div></div></dialog>
 <div id="login"><div class="box">
   <img class="brand-logo" src="/logo.png" alt="Logo AgroBack">
   <h2>Controle Financeiro</h2>
@@ -1040,7 +1041,7 @@ function loadGoogleMaps(){
       };
       const script=document.createElement('script');
       script.async=true;
-      script.src=`https://maps.googleapis.com/maps/api/js?key=${encodeURIComponent(config.apiKey)}&callback=${callbackName}&loading=async`;
+      script.src=`https://maps.googleapis.com/maps/api/js?key=${encodeURIComponent(config.apiKey)}&callback=${callbackName}&loading=async&libraries=geometry`;
       script.onerror=()=>{
         clearTimeout(timeout);
         delete window[callbackName];
@@ -1063,11 +1064,15 @@ function polygonCenter(points){
 }
 function updateCropMapActions(){
   const count=cropMapPolygon?.getPath().getLength()||0;
+  const areaSquareMeters=count>=3?window.google.maps.geometry.spherical.computeArea(cropMapPolygon.getPath()):0;
   $('cropMapFinish').hidden=!cropMapDrawing;
   $('cropMapFinish').textContent=`Concluir desenho (${count}/3)`;
   $('cropMapDraw').hidden=cropMapDrawing;
   $('cropMapClear').disabled=!cropMapPolygon&&!cropMapBoundary.length;
   $('cropMapConfirm').disabled=cropMapDrawing||(cropMapPolygon?count<3:!cropMapCoordinates&&!cropMapBoundary.length);
+  $('cropMapArea').textContent=count>=3
+    ?`Área medida: ${(areaSquareMeters/10000).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2})} ha (${areaSquareMeters.toLocaleString('pt-BR',{maximumFractionDigits:0})} m²)`
+    :'Área medida: desenhe um perímetro com pelo menos 3 pontos.';
 }
 function cropMapPolygonPoints(){
   if(!cropMapPolygon)return[];
@@ -1237,23 +1242,30 @@ $('cropMapConfirm').onclick=()=>{
   }
   const center=boundary.length?polygonCenter(boundary):cropMapCoordinates;
   if(!center)return;
+  const measuredAreaHa=cropMapPolygon&&boundary.length>=3
+    ?window.google.maps.geometry.spherical.computeArea(cropMapPolygon.getPath())/10000
+    :undefined;
   cropMapBoundary=boundary;
   cropMapCoordinates=center;
   if(cropMapEditTarget&&recordEditor){
     recordEditor.data.latitude=center.lat;
     recordEditor.data.longitude=center.lng;
+    if(measuredAreaHa!==undefined)recordEditor.data.areaHa=measuredAreaHa;
     if(boundary.length)recordEditor.data.boundary=boundary;
     else delete recordEditor.data.boundary;
     const latitudeInput=$('editorFields').querySelector('[name="latitude"]');
     const longitudeInput=$('editorFields').querySelector('[name="longitude"]');
+    const areaInput=$('editorFields').querySelector('[name="areaHa"]');
     if(latitudeInput)latitudeInput.value=center.lat.toFixed(6);
     if(longitudeInput)longitudeInput.value=center.lng.toFixed(6);
+    if(areaInput&&measuredAreaHa!==undefined)areaInput.value=measuredAreaHa.toFixed(4);
     const status=$('cropEditorMapStatus');
-    if(status)status.textContent=boundary.length?`Área demarcada (${boundary.length} vértices). Salve as alterações para gravar.`:'Área removida. Salve as alterações para gravar.';
+    if(status)status.textContent=boundary.length?`Área demarcada (${boundary.length} vértices) e medida em ${measuredAreaHa.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2})} ha. Salve as alterações para gravar.`:'Área removida. Salve as alterações para gravar.';
   }else{
     $('cropPlotLatitude').value=center.lat.toFixed(6);
     $('cropPlotLongitude').value=center.lng.toFixed(6);
     $('cropPlotBoundary').value=boundary.length?JSON.stringify(boundary):'';
+    if(measuredAreaHa!==undefined)$('cropPlotArea').value=measuredAreaHa.toFixed(4);
   }
   $('cropMapDialog').close();
 };
@@ -1754,7 +1766,7 @@ function openEditor(collection,record){
     const isNumber=['number','cropMinimum','cropRain','cropLatitude','cropLongitude'].includes(inputType),inputTypeName=isNumber?'number':inputType;
     const minimum=inputType==='cropRain'||inputType==='cropMinimum'?'0':inputType==='cropLatitude'?'-90':inputType==='cropLongitude'?'-180':'0.01';
     const maximum=inputType==='cropLatitude'?' max="90"':inputType==='cropLongitude'?' max="180"':'';
-    const step=inputType==='cropLatitude'||inputType==='cropLongitude'?'0.000001':'0.01';
+    const step=inputType==='cropLatitude'||inputType==='cropLongitude'?'0.000001':inputType==='number'&&name==='areaHa'?'0.0001':'0.01';
     const numberAttrs=isNumber?` inputmode="decimal" min="${minimum}"${maximum} step="${step}"`:'';
     const inputMode=keyboardMode==='numeric'?' inputmode="numeric"':'';
     return `<label class="edit-field">${label}<input name="${name}" type="${inputTypeName}" value="${esc(value)}"${numberAttrs}${inputMode}${required?' required':''}></label>`;
