@@ -1538,34 +1538,55 @@ window.addEventListener('pagehide',()=>{
 });
 function createSharedDb(){
   const subscriptions=new Set();
-  let loading=false,timer=null;
-  const refresh=async()=>{
-    if(loading||!subscriptions.size)return;
-    loading=true;
-    $('syncStatus').textContent='Sincronizando...';
-    try{
-      const records=await apiRequest('/api/records');
-      subscriptions.forEach(subscription=>{
-        const matching=records.filter(record=>record.collection===subscription.collection);
-        const record=subscription.id?matching.find(item=>item.id===subscription.id):null;
-        const value=subscription.id
-          ?{exists:!!record,data:()=>record?Object.fromEntries(Object.entries(record).filter(([key])=>key!=='id'&&key!=='collection')):null}
-          :{docs:matching.map(item=>({id:item.id,data:()=>Object.fromEntries(Object.entries(item).filter(([key])=>key!=='id'&&key!=='collection'))}))};
-        const serialized=JSON.stringify(value,(key,item)=>typeof item==='function'?item():item);
-        if(serialized!==subscription.previous){subscription.previous=serialized;subscription.callback(value)}
-      });
-      recordsLoaded=true;
-      $('syncStatus').textContent='Sincronizado às '+new Date().toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'});
-    }catch(error){
-      $('syncStatus').textContent='Falha ao sincronizar';
-      subscriptions.forEach(subscription=>subscription.onError?.(error));
-    }finally{loading=false}
+  let refreshPromise=null,refreshRequested=false,timer=null;
+  const refresh=()=>{
+    if(!subscriptions.size||document.visibilityState==='hidden')return Promise.resolve();
+    if(refreshPromise){refreshRequested=true;return refreshPromise}
+    refreshPromise=(async()=>{
+      do{
+        refreshRequested=false;
+        $('syncStatus').textContent='Sincronizando...';
+        try{
+          const records=await apiRequest('/api/records');
+          subscriptions.forEach(subscription=>{
+            const matching=records.filter(record=>record.collection===subscription.collection);
+            const record=subscription.id?matching.find(item=>item.id===subscription.id):null;
+            const value=subscription.id
+              ?{exists:!!record,data:()=>record?Object.fromEntries(Object.entries(record).filter(([key])=>key!=='id'&&key!=='collection')):null}
+              :{docs:matching.map(item=>({id:item.id,data:()=>Object.fromEntries(Object.entries(item).filter(([key])=>key!=='id'&&key!=='collection'))}))};
+            const serialized=JSON.stringify(value,(key,item)=>typeof item==='function'?item():item);
+            if(serialized!==subscription.previous){subscription.previous=serialized;subscription.callback(value)}
+          });
+          recordsLoaded=true;
+          $('syncStatus').textContent='Sincronizado às '+new Date().toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'});
+        }catch(error){
+          $('syncStatus').textContent='Falha ao sincronizar';
+          subscriptions.forEach(subscription=>subscription.onError?.(error));
+        }
+      }while(refreshRequested&&subscriptions.size&&document.visibilityState!=='hidden');
+    })().finally(()=>{
+      refreshPromise=null;
+      if(refreshRequested&&subscriptions.size&&document.visibilityState!=='hidden')void refresh();
+    });
+    return refreshPromise;
   };
+  const startPolling=()=>{
+    if(!timer&&subscriptions.size&&document.visibilityState!=='hidden')timer=setInterval(()=>void refresh(),5000);
+  };
+  document.addEventListener('visibilitychange',()=>{
+    if(document.visibilityState==='hidden'){
+      clearInterval(timer);timer=null;
+      if(subscriptions.size)$('syncStatus').textContent='Sincronização pausada (aba inativa)';
+    }else if(subscriptions.size){
+      void refresh();
+      startPolling();
+    }
+  });
   const watch=(collection,id,callback,onError)=>{
     const subscription={collection,id,callback,onError,previous:null};
     subscriptions.add(subscription);
     void refresh();
-    if(!timer)timer=setInterval(refresh,5000);
+    startPolling();
     return()=>{
       subscriptions.delete(subscription);
       if(!subscriptions.size){clearInterval(timer);timer=null}

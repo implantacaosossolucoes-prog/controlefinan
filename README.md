@@ -44,7 +44,7 @@ cp .env.example .env
 npm start
 ```
 
-Use as senhas atuais dos usuários, com o mínimo de 4 caracteres. O `.env` é carregado ao iniciar o servidor e ignorado pelo Git. Abra o endereço exibido no terminal. O app local e o publicado no Vercel usam o mesmo banco Supabase, e o polling atualiza os dados dos outros dispositivos em até aproximadamente 5 segundos.
+Use as senhas atuais dos usuários, com o mínimo de 4 caracteres. O `.env` é carregado ao iniciar o servidor e ignorado pelo Git. Abra o endereço exibido no terminal. O app local e o publicado no Vercel usam o mesmo banco Supabase, e o polling atualiza os dados dos outros dispositivos em até aproximadamente 5 segundos enquanto a aba está visível. A sincronização pausa quando a aba fica inativa e faz uma atualização imediata ao voltar; pedidos feitos enquanto outra consulta está em andamento são processados em seguida.
 
 ### Testar sem conectar ao Supabase
 
