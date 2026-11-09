@@ -69,11 +69,19 @@ export function validateRecordData(collection, id, data, today = new Date()) {
   } else if (collection === 'lavouras') {
     if (!cropKinds.includes(data.kind)) return 'invalid-crop-record';
     if (data.kind === 'talhao') {
+      const boundary = data.boundary;
+      const validBoundary = boundary === undefined || Array.isArray(boundary)
+        && boundary.length >= 3 && boundary.length <= 500
+        && boundary.every(point => point && typeof point === 'object' && !Array.isArray(point)
+          && Number.isFinite(point.latitude) && point.latitude >= -90 && point.latitude <= 90
+          && Number.isFinite(point.longitude) && point.longitude >= -180 && point.longitude <= 180)
+        && new Set(boundary.map(point => `${point.latitude},${point.longitude}`)).size >= 3;
       if (!validText(data.nome, true, 100) || !validAmount(data.areaHa, true)
         || !validText(data.observacoes, false, 1000)
         || (data.latitude !== undefined && (!Number.isFinite(data.latitude) || data.latitude < -90 || data.latitude > 90))
         || (data.longitude !== undefined && (!Number.isFinite(data.longitude) || data.longitude < -180 || data.longitude > 180))
-        || ((data.latitude === undefined) !== (data.longitude === undefined))) return 'invalid-crop-plot';
+        || ((data.latitude === undefined) !== (data.longitude === undefined))
+        || !validBoundary) return 'invalid-crop-plot';
     } else if (data.kind === 'safra') {
       if (!cropTypes.includes(data.cultura) || !validText(data.nome, true, 80)
         || !validRecordId(data.talhaoId) || !validText(data.variedade, false, 120)

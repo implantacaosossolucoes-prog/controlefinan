@@ -145,6 +145,30 @@ test('crop records validate plots, seasons, field activities and linked finance 
   assert.equal(validateRecordData('lavouras', 'plot-located', {
     ...plot, latitude: -29.123456, longitude: -53.987654
   }, today), null);
+  const boundary = [
+    { latitude: -29.1, longitude: -53.1 },
+    { latitude: -29.1, longitude: -53.2 },
+    { latitude: -29.2, longitude: -53.2 },
+    { latitude: -29.2, longitude: -53.1 }
+  ];
+  assert.equal(validateRecordData('lavouras', 'plot-demarcated', {
+    ...plot, latitude: -29.15, longitude: -53.15, boundary
+  }, today), null);
+  assert.equal(validateRecordData('lavouras', 'plot-short-boundary', {
+    ...plot, boundary: boundary.slice(0, 2)
+  }, today), 'invalid-crop-plot');
+  assert.equal(validateRecordData('lavouras', 'plot-duplicate-boundary', {
+    ...plot, boundary: [boundary[0], boundary[1], boundary[0]]
+  }, today), 'invalid-crop-plot');
+  assert.equal(validateRecordData('lavouras', 'plot-bad-boundary-point', {
+    ...plot, boundary: [...boundary.slice(0, 3), { latitude: 0, longitude: 181 }]
+  }, today), 'invalid-crop-plot');
+  assert.equal(validateRecordData('lavouras', 'plot-too-large-boundary', {
+    ...plot, boundary: Array.from({ length: 501 }, (_, index) => ({
+      latitude: index % 90,
+      longitude: index % 180
+    }))
+  }, today), 'invalid-crop-plot');
   assert.equal(validateRecordData('lavouras', 'plot-half-located', {
     ...plot, latitude: -29.123456
   }, today), 'invalid-crop-plot');
@@ -190,12 +214,21 @@ test('crop records validate plots, seasons, field activities and linked finance 
 });
 
 test('crop records are included in versioned backup preparation', () => {
+  const boundary = [
+    { latitude: -29.1, longitude: -53.1 },
+    { latitude: -29.1, longitude: -53.2 },
+    { latitude: -29.2, longitude: -53.2 }
+  ];
   const [record] = prepareBackup({
     version: 1,
     collections: {
-      lavouras: [{ id: 'plot-1', kind: 'talhao', nome: 'Talhão Sul', areaHa: 8 }]
+      lavouras: [{
+        id: 'plot-1', kind: 'talhao', nome: 'Talhão Sul', areaHa: 8,
+        latitude: -29.133333, longitude: -53.166667, boundary
+      }]
     }
   }, new Date(2026, 0, 5));
   assert.equal(record.collection, 'lavouras');
   assert.equal(record.data.nome, 'Talhão Sul');
+  assert.deepEqual(record.data.boundary, boundary);
 });

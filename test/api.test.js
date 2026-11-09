@@ -410,7 +410,15 @@ test('authenticated API can persist crop plots in the shared records table', asy
   try {
     const response = await request('POST', '/api/records', {
       collection: 'lavouras',
-      data: { kind: 'talhao', nome: 'Talhão Norte', areaHa: 12.5 }
+      data: {
+        kind: 'talhao', nome: 'Talhão Norte', areaHa: 12.5,
+        latitude: -29.15, longitude: -53.15,
+        boundary: [
+          { latitude: -29.1, longitude: -53.1 },
+          { latitude: -29.1, longitude: -53.2 },
+          { latitude: -29.2, longitude: -53.2 }
+        ]
+      }
     }, cookie);
     assert.equal(response.statusCode, 201);
     assert.match(calls[0].url, /\/rest\/v1\/records$/);

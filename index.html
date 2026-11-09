@@ -302,7 +302,7 @@ button:disabled{cursor:wait;opacity:.6}
 #cropMap{width:100%;height:min(58dvh,520px);min-height:280px;margin:12px 0;border:1px solid var(--bd);border-radius:10px}
 .crop-map-actions{display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap}
 .crop-map-actions p{flex:1 1 240px;margin:0;color:var(--mut);font-size:12px}
-.crop-map-buttons{display:flex;gap:8px}
+.crop-map-buttons{display:flex;gap:8px;flex-wrap:wrap}
 .crop-toolbar{display:grid;grid-template-columns:minmax(180px,1fr) minmax(220px,2fr);gap:8px;margin:14px 0 10px}
 .crop-toolbar input,.crop-toolbar select{width:100%;min-height:42px;background:var(--card)}
 .crop-diary{display:grid;gap:8px}
@@ -537,7 +537,8 @@ button:disabled{cursor:wait;opacity:.6}
         <input id="cropPlotLatitude" type="number" aria-label="Latitude do talhão" placeholder="Latitude" readonly>
         <input id="cropPlotLongitude" type="number" aria-label="Longitude do talhão" placeholder="Longitude" readonly>
       </div>
-      <button type="button" id="cropMapPick" class="secondary-button crop-map-button">📍 Marcar localização no Google Maps</button>
+      <input id="cropPlotBoundary" type="hidden">
+      <button type="button" id="cropMapPick" class="secondary-button crop-map-button">📍 Marcar localização ou demarcar área</button>
       <button type="button" id="cropPlotAdd" class="crop-primary">＋ Cadastrar talhão</button>
     </div>
     <div id="cropPlots" class="crop-record-list"></div>
@@ -702,7 +703,7 @@ button:disabled{cursor:wait;opacity:.6}
 <input id="photoReplaceInput" type="file" accept="image/*" capture="environment" hidden>
 <dialog id="cowCalvingDialog" aria-labelledby="cowCalvingTitle"><form id="cowCalvingForm"><h2 id="cowCalvingTitle">Registrar parto</h2><p id="cowCalvingCow"></p><label for="calfObservations">Observações do bezerro (opcional)</label><textarea id="calfObservations" maxlength="2000" placeholder="Ex.: sexo, cor, peso, número do brinco ou cuidados"></textarea><div class="cow-calving-actions"><button type="button" id="cowCalvingCancel" class="secondary-button">Cancelar</button><button type="submit" id="cowCalvingSave">Salvar parto</button></div></form></dialog>
 <dialog id="calfPhotoViewer" aria-label="Visualização da foto"><button id="calfPhotoClose" type="button" aria-label="Fechar foto">×</button><figure><img id="calfPhotoViewerImage" alt=""></figure></dialog>
-<dialog id="cropMapDialog" aria-labelledby="cropMapTitle"><h2 id="cropMapTitle">Localização do talhão</h2><div id="cropMap" role="application" aria-label="Mapa para marcar a localização do talhão"></div><div class="crop-map-actions"><p id="cropMapStatus" role="status">Clique no mapa para selecionar o ponto central do talhão.</p><div class="crop-map-buttons"><button type="button" id="cropMapGeolocate" class="secondary-button">Minha localização</button><button type="button" id="cropMapCancel" class="secondary-button">Cancelar</button><button type="button" id="cropMapConfirm" class="crop-primary" disabled>Usar localização</button></div></div></dialog>
+<dialog id="cropMapDialog" aria-labelledby="cropMapTitle"><h2 id="cropMapTitle">Localização e área do talhão</h2><div id="cropMap" role="application" aria-label="Mapa para marcar ou demarcar o talhão"></div><div class="crop-map-actions"><p id="cropMapStatus" role="status">Use “Desenhar área” e clique nos vértices do perímetro.</p><div class="crop-map-buttons"><button type="button" id="cropMapGeolocate" class="secondary-button">Minha localização</button><button type="button" id="cropMapDraw" class="secondary-button">Desenhar área</button><button type="button" id="cropMapFinish" class="secondary-button" hidden>Concluir desenho (0/3)</button><button type="button" id="cropMapClear" class="secondary-button">Limpar área</button><button type="button" id="cropMapCancel" class="secondary-button">Cancelar</button><button type="button" id="cropMapConfirm" class="crop-primary" disabled>Usar localização</button></div></div></dialog>
 <div id="login"><div class="box">
   <img class="brand-logo" src="/logo.png" alt="Logo AgroBack">
   <h2>Controle Financeiro</h2>
@@ -821,7 +822,11 @@ function validateRecord(collection,data,id=''){
     if(data.kind==='talhao'&&(!data.nome.trim()||!(Number.isFinite(data.areaHa)&&data.areaHa>0)
       ||(data.latitude!==undefined&&(!Number.isFinite(data.latitude)||data.latitude < -90||data.latitude>90))
       ||(data.longitude!==undefined&&(!Number.isFinite(data.longitude)||data.longitude < -180||data.longitude>180))
-      ||((data.latitude===undefined)!==(data.longitude===undefined))))return 'Informe o nome e uma área válida; a latitude e longitude devem ser preenchidas juntas e estar dentro dos limites válidos.';
+      ||((data.latitude===undefined)!==(data.longitude===undefined))
+      ||(data.boundary!==undefined&&(!Array.isArray(data.boundary)||data.boundary.length<3||data.boundary.length>500
+        ||data.boundary.some(point=>!point||!Number.isFinite(point.latitude)||point.latitude < -90||point.latitude>90
+          ||!Number.isFinite(point.longitude)||point.longitude < -180||point.longitude>180)
+        ||new Set(data.boundary.map(point=>`${point.latitude},${point.longitude}`)).size<3))))return 'Informe o nome e uma área válida; a localização e a demarcação devem conter coordenadas válidas.';
     if(data.kind==='safra'&&(!data.nome.trim()||!data.talhaoId||!['milho','soja','aveia','feijao'].includes(data.cultura)))return 'Informe a cultura, identificação e talhão da safra.';
     if(data.kind==='insumo'&&(!data.nome.trim()||!data.unidade.trim()))return 'Informe o nome e a unidade do insumo.';
     if(data.kind==='atividade'){
@@ -961,7 +966,7 @@ function renderCropModule(){
   $('cropSeasonCount').textContent=String(seasons.filter(season=>season.status!=='encerrada').length);
   $('cropAreaTotal').textContent=seasons.filter(season=>season.status!=='encerrada').reduce((total,season)=>total+(cropById(season.talhaoId)?.areaHa||0),0).toLocaleString('pt-BR',{maximumFractionDigits:2})+' ha';
   $('cropLowStockCount').textContent=String(inputsList.filter(input=>cropStockBalance(input.id)<0||input.estoqueMinimo>0&&cropStockBalance(input.id)<=input.estoqueMinimo).length);
-  $('cropPlots').innerHTML=plots.length?plots.sort((a,b)=>a.nome.localeCompare(b.nome,'pt-BR')).map(plot=>`<article class="crop-record"><div class="crop-record-main"><div class="crop-record-title">${esc(plot.nome)} <span class="crop-badge">${plot.areaHa.toLocaleString('pt-BR')} ha</span></div><small class="crop-record-meta">${plot.observacoes?esc(plot.observacoes)+' · ':''}${Number.isFinite(plot.latitude)&&Number.isFinite(plot.longitude)?`Localização: ${plot.latitude.toFixed(5)}, ${plot.longitude.toFixed(5)} · `:''}Despesas vinculadas: ${brl(cropExpenseTotal('',plot.id))}</small><div class="crop-weather" id="cropWeather-${esc(plot.id)}"><span class="crop-weather-message">${Number.isFinite(plot.latitude)&&Number.isFinite(plot.longitude)?'Carregando previsão do tempo...':'Marque a localização no mapa para ativar a previsão automática.'}</span></div></div>${canWrite?`<div class="crop-record-actions"><button class="record-edit x" data-id="${esc(plot.id)}" title="Editar talhão" aria-label="Editar talhão">✎</button><button class="crop-delete x" data-id="${esc(plot.id)}" data-label="${esc(plot.nome)}" title="Excluir talhão" aria-label="Excluir talhão">✕</button></div>`:''}</article>`).join(''):'<div class="crop-empty">Nenhum talhão cadastrado. Crie o primeiro para iniciar o planejamento da lavoura.</div>';
+  $('cropPlots').innerHTML=plots.length?plots.sort((a,b)=>a.nome.localeCompare(b.nome,'pt-BR')).map(plot=>`<article class="crop-record"><div class="crop-record-main"><div class="crop-record-title">${esc(plot.nome)} <span class="crop-badge">${plot.areaHa.toLocaleString('pt-BR')} ha</span>${plot.boundary?.length>=3?` <span class="crop-badge">Área demarcada · ${plot.boundary.length} pontos</span>`:''}</div><small class="crop-record-meta">${plot.observacoes?esc(plot.observacoes)+' · ':''}${Number.isFinite(plot.latitude)&&Number.isFinite(plot.longitude)?`Localização: ${plot.latitude.toFixed(5)}, ${plot.longitude.toFixed(5)} · `:''}Despesas vinculadas: ${brl(cropExpenseTotal('',plot.id))}</small><div class="crop-weather" id="cropWeather-${esc(plot.id)}"><span class="crop-weather-message">${Number.isFinite(plot.latitude)&&Number.isFinite(plot.longitude)?'Carregando previsão do tempo...':'Marque a localização no mapa para ativar a previsão automática.'}</span></div></div>${canWrite?`<div class="crop-record-actions"><button class="record-edit x" data-id="${esc(plot.id)}" title="Editar talhão" aria-label="Editar talhão">✎</button><button class="crop-delete x" data-id="${esc(plot.id)}" data-label="${esc(plot.nome)}" title="Excluir talhão" aria-label="Excluir talhão">✕</button></div>`:''}</article>`).join(''):'<div class="crop-empty">Nenhum talhão cadastrado. Crie o primeiro para iniciar o planejamento da lavoura.</div>';
   for(const plot of plots){
     const weatherContainer=document.getElementById(`cropWeather-${plot.id}`);
     if(weatherContainer)renderCropWeather(plot,weatherContainer);
@@ -1006,7 +1011,7 @@ function resetCropActivityFields(){
   $('cropActivityArea').setAttribute('aria-label',type==='colheita'?'Área colhida em hectares':'Área trabalhada em hectares');
 }
 function cropNumber(id){const value=$(id).value;return value===''?undefined:Number(value)}
-let googleMapsPromise=null,cropMapInstance=null,cropMapMarker=null,cropMapCoordinates=null;
+let googleMapsPromise=null,cropMapInstance=null,cropMapMarker=null,cropMapPolygon=null,cropMapCoordinates=null,cropMapBoundary=[],cropMapDrawing=false,cropMapEditTarget=null;
 function showCropMapAuthError(){
   const status=$('cropMapStatus');
   if(status)status.textContent='O Google Maps recusou a chave. Confira se a Maps JavaScript API está ativada, o faturamento está habilitado e o domínio atual está permitido nas restrições HTTP referrer da chave.';
@@ -1049,35 +1054,113 @@ function loadGoogleMaps(){
   });
   return googleMapsPromise;
 }
-async function openCropMap(){
+function polygonCenter(points){
+  if(!points.length)return null;
+  return{
+    lat:points.reduce((sum,point)=>sum+point.latitude,0)/points.length,
+    lng:points.reduce((sum,point)=>sum+point.longitude,0)/points.length
+  };
+}
+function updateCropMapActions(){
+  const count=cropMapPolygon?.getPath().getLength()||0;
+  $('cropMapFinish').hidden=!cropMapDrawing;
+  $('cropMapFinish').textContent=`Concluir desenho (${count}/3)`;
+  $('cropMapDraw').hidden=cropMapDrawing;
+  $('cropMapClear').disabled=!cropMapPolygon&&!cropMapBoundary.length;
+  $('cropMapConfirm').disabled=cropMapDrawing||(cropMapPolygon?count<3:!cropMapCoordinates&&!cropMapBoundary.length);
+}
+function cropMapPolygonPoints(){
+  if(!cropMapPolygon)return[];
+  return cropMapPolygon.getPath().getArray().map(point=>({latitude:point.lat(),longitude:point.lng()}));
+}
+function watchCropMapPolygon(){
+  const path=cropMapPolygon.getPath();
+  for(const eventName of ['insert_at','set_at','remove_at']){
+    path.addListener(eventName,updateCropMapActions);
+  }
+}
+function startCropBoundaryDrawing(maps){
+  cropMapPolygon?.setMap(null);
+  cropMapPolygon=new maps.Polygon({
+    map:cropMapInstance,
+    paths:[],
+    strokeColor:'#15803d',
+    strokeOpacity:.95,
+    strokeWeight:3,
+    fillColor:'#22c55e',
+    fillOpacity:.25,
+    clickable:false,
+    editable:false
+  });
+  watchCropMapPolygon();
+  cropMapBoundary=[];
+  cropMapDrawing=true;
+  $('cropMapStatus').textContent='Clique no mapa para adicionar os vértices do perímetro. Marque pelo menos 3 pontos.';
+  updateCropMapActions();
+}
+async function openCropMap(plot=null){
   $('cropMapDialog').showModal();
   $('cropMapStatus').textContent='Carregando Google Maps...';
-  $('cropMapConfirm').disabled=true;
+  cropMapEditTarget=plot?{kind:'editor'}:null;
   try{
     const maps=await loadGoogleMaps();
-    const latitude=cropNumber('cropPlotLatitude'),longitude=cropNumber('cropPlotLongitude');
+    const latitude=plot?.latitude??cropNumber('cropPlotLatitude');
+    const longitude=plot?.longitude??cropNumber('cropPlotLongitude');
+    const initialBoundary=plot?.boundary??($('cropPlotBoundary').value?JSON.parse($('cropPlotBoundary').value):[]);
     const hasCurrent=Number.isFinite(latitude)&&Number.isFinite(longitude);
-    const center=hasCurrent?{lat:latitude,lng:longitude}:{lat:-14.235,lng:-51.925};
-    cropMapCoordinates=hasCurrent?center:null;
+    const center=initialBoundary.length?polygonCenter(initialBoundary):hasCurrent?{lat:latitude,lng:longitude}:{lat:-14.235,lng:-51.925};
+    cropMapCoordinates=hasCurrent||initialBoundary.length?center:null;
+    cropMapBoundary=initialBoundary.map(point=>({...point}));
+    cropMapDrawing=false;
     if(!cropMapInstance){
-      cropMapInstance=new maps.Map($('cropMap'),{center,zoom:hasCurrent?15:4,mapTypeId:'hybrid',streetViewControl:false,mapTypeControl:true,fullscreenControl:true});
+      cropMapInstance=new maps.Map($('cropMap'),{center,zoom:initialBoundary.length||hasCurrent?15:4,mapTypeId:'hybrid',streetViewControl:false,mapTypeControl:true,fullscreenControl:true,disableDoubleClickZoom:true});
       cropMapMarker=new maps.Marker({map:cropMapInstance,draggable:true});
-      cropMapInstance.addListener('click',event=>setCropMapCoordinates(event.latLng));
+      cropMapInstance.addListener('click',event=>{
+        if(cropMapDrawing){
+          const path=cropMapPolygon.getPath();
+          if(path.getLength()>=500){
+            $('cropMapStatus').textContent='O limite de 500 vértices foi atingido.';
+            return;
+          }
+          path.push(event.latLng);
+          updateCropMapActions();
+          $('cropMapStatus').textContent=`Desenho em andamento: ${path.getLength()} vértice(s). Continue clicando no perímetro.`;
+        }else if(!cropMapBoundary.length)setCropMapCoordinates(event.latLng);
+      });
       cropMapMarker.addListener('dragend',event=>setCropMapCoordinates(event.latLng));
     }else{
       cropMapInstance.setCenter(center);
-      cropMapInstance.setZoom(hasCurrent?15:4);
+      cropMapInstance.setZoom(initialBoundary.length||hasCurrent?15:4);
     }
-    if(hasCurrent){
+    cropMapPolygon?.setMap(null);
+    cropMapPolygon=null;
+    if(cropMapBoundary.length>=3){
+      cropMapPolygon=new maps.Polygon({
+        map:cropMapInstance,
+        paths:cropMapBoundary.map(point=>({lat:point.latitude,lng:point.longitude})),
+        strokeColor:'#15803d',
+        strokeOpacity:.95,
+        strokeWeight:3,
+        fillColor:'#22c55e',
+        fillOpacity:.25,
+        editable:true
+      });
+      watchCropMapPolygon();
+      cropMapMarker.setMap(null);
+      $('cropMapStatus').textContent=`Área demarcada com ${cropMapBoundary.length} vértices. Arraste os pontos para ajustar ou redesenhe.`;
+    }else if(hasCurrent){
       cropMapMarker.setPosition(center);
       cropMapMarker.setMap(cropMapInstance);
-      $('cropMapConfirm').disabled=false;
       $('cropMapStatus').textContent=`Ponto atual: ${latitude.toFixed(5)}, ${longitude.toFixed(5)}. Clique no mapa para alterá-lo.`;
+    }else if(cropMapBoundary.length){
+      cropMapMarker.setMap(null);
+      $('cropMapStatus').textContent=`Área demarcada com ${cropMapBoundary.length} vértices. Arraste os pontos para ajustar ou redesenhe.`;
     }else{
       cropMapMarker.setMap(null);
       $('cropMapStatus').textContent='Tentando localizar este dispositivo. Depois você pode ajustar o ponto no mapa.';
       locateCropDevice();
     }
+    updateCropMapActions();
     requestAnimationFrame(()=>maps.event.trigger(cropMapInstance,'resize'));
   }catch(error){
     $('cropMapStatus').textContent=error.message;
@@ -1087,8 +1170,8 @@ function setCropMapCoordinates(location){
   cropMapCoordinates={lat:location.lat(),lng:location.lng()};
   cropMapMarker.setPosition(cropMapCoordinates);
   cropMapMarker.setMap(cropMapInstance);
-  $('cropMapConfirm').disabled=false;
   $('cropMapStatus').textContent=`Ponto selecionado: ${cropMapCoordinates.lat.toFixed(5)}, ${cropMapCoordinates.lng.toFixed(5)}.`;
+  updateCropMapActions();
 }
 function locateCropDevice(){
   if(!navigator.geolocation){
@@ -1102,8 +1185,8 @@ function locateCropDevice(){
     cropMapCoordinates=point;
     cropMapMarker.setPosition(point);
     cropMapMarker.setMap(cropMapInstance);
-    $('cropMapConfirm').disabled=false;
     $('cropMapStatus').textContent=`Localização do dispositivo encontrada (${point.lat.toFixed(5)}, ${point.lng.toFixed(5)}). Se o talhão estiver em outro local, clique nele no mapa.`;
+    updateCropMapActions();
   },error=>{
     const message=error.code===1
       ?'A permissão de localização foi negada. Autorize o acesso à localização no navegador ou clique no mapa para marcar o talhão.'
@@ -1114,11 +1197,58 @@ function locateCropDevice(){
   },{enableHighAccuracy:true,timeout:15000,maximumAge:60000});
 }
 $('cropMapPick').onclick=()=>void openCropMap();
+$('cropMapDraw').onclick=()=>{
+  if(cropMapInstance)startCropBoundaryDrawing(window.google.maps);
+};
+$('cropMapFinish').onclick=()=>{
+  const count=cropMapPolygon?.getPath().getLength()||0;
+  if(count<3){
+    $('cropMapStatus').textContent='A área precisa de pelo menos 3 vértices. Continue clicando no perímetro.';
+    return;
+  }
+  cropMapDrawing=false;
+  cropMapPolygon.setOptions({clickable:true,editable:true});
+  cropMapBoundary=cropMapPolygonPoints();
+  $('cropMapStatus').textContent=`Área demarcada com ${count} vértices. Arraste os pontos para ajustar antes de confirmar.`;
+  updateCropMapActions();
+};
+$('cropMapClear').onclick=()=>{
+  cropMapPolygon?.setMap(null);
+  cropMapPolygon=null;
+  cropMapBoundary=[];
+  cropMapDrawing=false;
+  $('cropMapStatus').textContent='Área removida. Você pode marcar apenas um ponto ou desenhar uma nova área.';
+  updateCropMapActions();
+};
 $('cropMapCancel').onclick=()=>$('cropMapDialog').close();
 $('cropMapConfirm').onclick=()=>{
-  if(!cropMapCoordinates)return;
-  $('cropPlotLatitude').value=cropMapCoordinates.lat.toFixed(6);
-  $('cropPlotLongitude').value=cropMapCoordinates.lng.toFixed(6);
+  if(cropMapDrawing)return;
+  const boundary=cropMapPolygon?cropMapPolygonPoints():cropMapBoundary;
+  if(cropMapPolygon&&boundary.length<3){
+    $('cropMapStatus').textContent='A área precisa manter pelo menos 3 vértices.';
+    updateCropMapActions();
+    return;
+  }
+  const center=boundary.length?polygonCenter(boundary):cropMapCoordinates;
+  if(!center)return;
+  cropMapBoundary=boundary;
+  cropMapCoordinates=center;
+  if(cropMapEditTarget&&recordEditor){
+    recordEditor.data.latitude=center.lat;
+    recordEditor.data.longitude=center.lng;
+    if(boundary.length)recordEditor.data.boundary=boundary;
+    else delete recordEditor.data.boundary;
+    const latitudeInput=$('editorFields').querySelector('[name="latitude"]');
+    const longitudeInput=$('editorFields').querySelector('[name="longitude"]');
+    if(latitudeInput)latitudeInput.value=center.lat.toFixed(6);
+    if(longitudeInput)longitudeInput.value=center.lng.toFixed(6);
+    const status=$('cropEditorMapStatus');
+    if(status)status.textContent=boundary.length?`Área demarcada (${boundary.length} vértices). Salve as alterações para gravar.`:'Área removida. Salve as alterações para gravar.';
+  }else{
+    $('cropPlotLatitude').value=center.lat.toFixed(6);
+    $('cropPlotLongitude').value=center.lng.toFixed(6);
+    $('cropPlotBoundary').value=boundary.length?JSON.stringify(boundary):'';
+  }
   $('cropMapDialog').close();
 };
 $('cropMapGeolocate').onclick=()=>{
@@ -1131,12 +1261,15 @@ function renderCropExpenseFields(){
   renderCropSelects();
 }
 $('cropPlotAdd').onclick=async()=>{
-  const data={kind:'talhao',nome:$('cropPlotName').value.trim(),areaHa:cropNumber('cropPlotArea'),latitude:cropNumber('cropPlotLatitude'),longitude:cropNumber('cropPlotLongitude'),observacoes:$('cropPlotNotes').value.trim()||undefined,ts:Date.now()};
+  let boundary;
+  try{boundary=$('cropPlotBoundary').value?JSON.parse($('cropPlotBoundary').value):undefined}
+  catch{note('Não foi possível ler a área demarcada. Abra o mapa e confirme novamente.');return}
+  const data={kind:'talhao',nome:$('cropPlotName').value.trim(),areaHa:cropNumber('cropPlotArea'),latitude:cropNumber('cropPlotLatitude'),longitude:cropNumber('cropPlotLongitude'),boundary,observacoes:$('cropPlotNotes').value.trim()||undefined,ts:Date.now()};
   const validation=validateRecord('lavouras',data);
   if(validation){note(validation);return}
   try{
     await db.collection('lavouras').add(data);
-    $('cropPlotName').value='';$('cropPlotArea').value='';$('cropPlotNotes').value='';$('cropPlotLatitude').value='';$('cropPlotLongitude').value='';
+    $('cropPlotName').value='';$('cropPlotArea').value='';$('cropPlotNotes').value='';$('cropPlotLatitude').value='';$('cropPlotLongitude').value='';$('cropPlotBoundary').value='';
     note('');toast('✅ Talhão cadastrado.','#15803d');
   }catch(error){note('Não foi possível cadastrar o talhão: '+error.message)}
 };
@@ -1620,6 +1753,10 @@ function openEditor(collection,record){
     const inputMode=keyboardMode==='numeric'?' inputmode="numeric"':'';
     return `<label class="edit-field">${label}<input name="${name}" type="${inputTypeName}" value="${esc(value)}"${numberAttrs}${inputMode}${required?' required':''}></label>`;
   }).join('');
+  if(collection==='lavouras'&&record.kind==='talhao'){
+    $('editorFields').insertAdjacentHTML('beforeend','<div class="edit-field"><span>Área do talhão</span><button type="button" id="cropEditorMapButton" class="secondary-button">🗺️ Editar área no Google Maps</button><small id="cropEditorMapStatus" class="crop-weather-message">'+(record.boundary?.length>=3?`Área demarcada com ${record.boundary.length} vértices.`:'Nenhuma área demarcada.')+'</small></div>');
+    $('cropEditorMapButton').onclick=()=>void openCropMap(recordEditor.data);
+  }
   $('editor').hidden=false;
   $('editorFields').querySelector('input,select')?.focus();
 }
