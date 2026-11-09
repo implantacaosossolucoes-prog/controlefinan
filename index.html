@@ -1081,18 +1081,7 @@ function watchCropMapPolygon(){
 }
 function startCropBoundaryDrawing(maps){
   cropMapPolygon?.setMap(null);
-  cropMapPolygon=new maps.Polygon({
-    map:cropMapInstance,
-    paths:[],
-    strokeColor:'#15803d',
-    strokeOpacity:.95,
-    strokeWeight:3,
-    fillColor:'#22c55e',
-    fillOpacity:.25,
-    clickable:false,
-    editable:false
-  });
-  watchCropMapPolygon();
+  cropMapPolygon=null;
   cropMapBoundary=[];
   cropMapDrawing=true;
   $('cropMapStatus').textContent='Clique no mapa para adicionar os vértices do perímetro. Marque pelo menos 3 pontos.';
@@ -1117,14 +1106,31 @@ async function openCropMap(plot=null){
       cropMapMarker=new maps.Marker({map:cropMapInstance,draggable:true});
       cropMapInstance.addListener('click',event=>{
         if(cropMapDrawing){
-          const path=cropMapPolygon.getPath();
-          if(path.getLength()>=500){
+          const path=cropMapPolygon?.getPath();
+          const count=path?.getLength()||0;
+          if(count>=500){
             $('cropMapStatus').textContent='O limite de 500 vértices foi atingido.';
             return;
           }
-          path.push(event.latLng);
+          if(!cropMapPolygon){
+            cropMapPolygon=new maps.Polygon({
+              map:cropMapInstance,
+              paths:[event.latLng],
+              strokeColor:'#15803d',
+              strokeOpacity:.95,
+              strokeWeight:3,
+              fillColor:'#22c55e',
+              fillOpacity:.25,
+              clickable:false,
+              editable:false
+            });
+            watchCropMapPolygon();
+          }else{
+            cropMapPolygon.getPath().push(event.latLng);
+          }
+          const updatedCount=cropMapPolygon.getPath().getLength();
           updateCropMapActions();
-          $('cropMapStatus').textContent=`Desenho em andamento: ${path.getLength()} vértice(s). Continue clicando no perímetro.`;
+          $('cropMapStatus').textContent=`Desenho em andamento: ${updatedCount} vértice(s). Continue clicando no perímetro.`;
         }else if(!cropMapBoundary.length)setCropMapCoordinates(event.latLng);
       });
       cropMapMarker.addListener('dragend',event=>setCropMapCoordinates(event.latLng));
