@@ -1007,6 +1007,10 @@ function resetCropActivityFields(){
 }
 function cropNumber(id){const value=$(id).value;return value===''?undefined:Number(value)}
 let googleMapsPromise=null,cropMapInstance=null,cropMapMarker=null,cropMapCoordinates=null;
+function showCropMapAuthError(){
+  const status=$('cropMapStatus');
+  if(status)status.textContent='O Google Maps recusou a chave. Confira se a Maps JavaScript API está ativada, o faturamento está habilitado e o domínio atual está permitido nas restrições HTTP referrer da chave.';
+}
 function loadGoogleMaps(){
   if(window.google?.maps)return Promise.resolve(window.google.maps);
   if(googleMapsPromise)return googleMapsPromise;
@@ -1015,7 +1019,17 @@ function loadGoogleMaps(){
     if(!config.apiKey)throw new Error('Configure GOOGLE_MAPS_API_KEY para habilitar o mapa.');
     return new Promise((resolve,reject)=>{
       const callbackName='cropGoogleMapsReady';
+      const timeout=setTimeout(()=>{
+        delete window[callbackName];
+        reject(new Error('O Google Maps demorou para responder. Verifique a conexão, a chave e as restrições de domínio.'));
+      },15000);
+      window.gm_authFailure=()=>{
+        clearTimeout(timeout);
+        showCropMapAuthError();
+        reject(new Error('O Google Maps recusou a chave; confira as configurações exibidas no mapa.'));
+      };
       window[callbackName]=()=>{
+        clearTimeout(timeout);
         delete window[callbackName];
         resolve(window.google.maps);
       };
@@ -1023,6 +1037,7 @@ function loadGoogleMaps(){
       script.async=true;
       script.src=`https://maps.googleapis.com/maps/api/js?key=${encodeURIComponent(config.apiKey)}&callback=${callbackName}&loading=async`;
       script.onerror=()=>{
+        clearTimeout(timeout);
         delete window[callbackName];
         reject(new Error('Não foi possível carregar o Google Maps. Confira a chave e as restrições de domínio.'));
       };
@@ -1060,7 +1075,8 @@ async function openCropMap(){
       $('cropMapStatus').textContent=`Ponto atual: ${latitude.toFixed(5)}, ${longitude.toFixed(5)}. Clique no mapa para alterá-lo.`;
     }else{
       cropMapMarker.setMap(null);
-      $('cropMapStatus').textContent='Clique no mapa para selecionar o ponto central do talhão.';
+      $('cropMapStatus').textContent='Tentando localizar este dispositivo. Depois você pode ajustar o ponto no mapa.';
+      locateCropDevice();
     }
     requestAnimationFrame(()=>maps.event.trigger(cropMapInstance,'resize'));
   }catch(error){
@@ -1074,6 +1090,29 @@ function setCropMapCoordinates(location){
   $('cropMapConfirm').disabled=false;
   $('cropMapStatus').textContent=`Ponto selecionado: ${cropMapCoordinates.lat.toFixed(5)}, ${cropMapCoordinates.lng.toFixed(5)}.`;
 }
+function locateCropDevice(){
+  if(!navigator.geolocation){
+    $('cropMapStatus').textContent='Este navegador não oferece localização. Clique no mapa para marcar o ponto central do talhão.';
+    return;
+  }
+  navigator.geolocation.getCurrentPosition(position=>{
+    const point={lat:position.coords.latitude,lng:position.coords.longitude};
+    cropMapInstance.setCenter(point);
+    cropMapInstance.setZoom(16);
+    cropMapCoordinates=point;
+    cropMapMarker.setPosition(point);
+    cropMapMarker.setMap(cropMapInstance);
+    $('cropMapConfirm').disabled=false;
+    $('cropMapStatus').textContent=`Localização do dispositivo encontrada (${point.lat.toFixed(5)}, ${point.lng.toFixed(5)}). Se o talhão estiver em outro local, clique nele no mapa.`;
+  },error=>{
+    const message=error.code===1
+      ?'A permissão de localização foi negada. Autorize o acesso à localização no navegador ou clique no mapa para marcar o talhão.'
+      :error.code===3
+        ?'A localização demorou para responder. Tente novamente ou clique no mapa para marcar o talhão.'
+        :'Não foi possível obter a localização. Confira o GPS e a permissão do navegador, ou clique no mapa para marcar o talhão.';
+    $('cropMapStatus').textContent=message;
+  },{enableHighAccuracy:true,timeout:15000,maximumAge:60000});
+}
 $('cropMapPick').onclick=()=>void openCropMap();
 $('cropMapCancel').onclick=()=>$('cropMapDialog').close();
 $('cropMapConfirm').onclick=()=>{
@@ -1083,21 +1122,9 @@ $('cropMapConfirm').onclick=()=>{
   $('cropMapDialog').close();
 };
 $('cropMapGeolocate').onclick=()=>{
-  if(!navigator.geolocation){$('cropMapStatus').textContent='A localização não está disponível neste dispositivo.';return}
   if(!cropMapInstance){$('cropMapStatus').textContent='Aguarde o carregamento do mapa antes de usar sua localização.';return}
   $('cropMapStatus').textContent='Obtendo sua localização...';
-  navigator.geolocation.getCurrentPosition(position=>{
-    const point={lat:position.coords.latitude,lng:position.coords.longitude};
-    cropMapInstance.setCenter(point);
-    cropMapInstance.setZoom(16);
-    cropMapCoordinates=point;
-    cropMapMarker.setPosition(point);
-    cropMapMarker.setMap(cropMapInstance);
-    $('cropMapConfirm').disabled=false;
-    $('cropMapStatus').textContent=`Ponto selecionado: ${point.lat.toFixed(5)}, ${point.lng.toFixed(5)}.`;
-  },()=>{
-    $('cropMapStatus').textContent='Não foi possível obter sua localização. Verifique a permissão do navegador.';
-  },{enableHighAccuracy:true,timeout:10000});
+  locateCropDevice();
 };
 function renderCropExpenseFields(){
   $('cropExpenseFields').hidden=type!=='out';
