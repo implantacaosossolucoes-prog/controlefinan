@@ -1,4 +1,8 @@
-const backupCollections = ['lancamentos', 'contas', 'vacas', 'bezerros', 'config'];
+const backupCollections = ['lancamentos', 'contas', 'vacas', 'bezerros', 'lavouras', 'config'];
+const collections = ['config', 'lancamentos', 'contas', 'vacas', 'bezerros', 'lavouras'];
+const cropKinds = ['talhao', 'safra', 'atividade', 'insumo'];
+const cropOperations = ['plantio', 'adubacao', 'pulverizacao', 'manejo', 'colheita', 'chuva', 'estoque_entrada', 'estoque_saida'];
+const cropTypes = ['milho', 'soja', 'aveia', 'feijao'];
 const maximumRecords = 5000;
 const maximumRecordBytes = 128_000;
 
@@ -20,12 +24,16 @@ function validAmount(value, positive = false) {
   return Number.isFinite(value) && Math.abs(value) <= 1_000_000_000_000 && (!positive || value > 0);
 }
 
+function validOptionalAmount(value, positive = false) {
+  return value === undefined || validAmount(value) && value >= 0 && (!positive || value > 0);
+}
+
 export function validRecordId(value) {
   return typeof value === 'string' && /^[\da-z_-]{1,128}$/i.test(value);
 }
 
 export function validateRecordData(collection, id, data, today = new Date()) {
-  if (!['config', 'lancamentos', 'contas', 'vacas', 'bezerros'].includes(collection)
+  if (!collections.includes(collection)
     || !validRecordId(id)
     || !data || typeof data !== 'object' || Array.isArray(data)) {
     return 'invalid-record';
@@ -38,7 +46,10 @@ export function validateRecordData(collection, id, data, today = new Date()) {
   }
   if (collection === 'lancamentos') {
     if (!['in', 'out'].includes(data.type) || !validAmount(data.value, true)
-      || !validDate(data.date) || !validText(data.desc) || !validText(data.cat) || !validText(data.who)) {
+      || !validDate(data.date) || !validText(data.desc) || !validText(data.cat) || !validText(data.who)
+      || (data.cropSeasonId !== undefined && !validRecordId(data.cropSeasonId))
+      || (data.cropPlotId !== undefined && !validRecordId(data.cropPlotId))
+      || ((data.cropSeasonId !== undefined || data.cropPlotId !== undefined) && data.type !== 'out')) {
       return 'invalid-movement';
     }
   } else if (collection === 'contas') {
@@ -49,10 +60,51 @@ export function validateRecordData(collection, id, data, today = new Date()) {
     if (!validText(data.nome, true) || !validText(data.touro) || !validDate(data.cio) || !validDate(data.parto)
       || !validText(data.observacoesBezerro, false, 2000)
       || (data.partoRealizado !== undefined && (!validDate(data.partoRealizado) || data.partoRealizado > todayDate))) return 'invalid-cow';
-  } else if (!validText(data.descricao, true) || !validText(data.brinco, true)
-    || !validDate(data.nascimento)
-    || data.nascimento > `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`) {
-    return 'invalid-calf';
+  } else if (collection === 'bezerros') {
+    if (!validText(data.descricao, true) || !validText(data.brinco, true)
+      || !validDate(data.nascimento)
+      || data.nascimento > `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`) {
+      return 'invalid-calf';
+    }
+  } else if (collection === 'lavouras') {
+    if (!cropKinds.includes(data.kind)) return 'invalid-crop-record';
+    if (data.kind === 'talhao') {
+      if (!validText(data.nome, true, 100) || !validAmount(data.areaHa, true)
+        || !validText(data.observacoes, false, 1000)) return 'invalid-crop-plot';
+    } else if (data.kind === 'safra') {
+      if (!cropTypes.includes(data.cultura) || !validText(data.nome, true, 80)
+        || !validRecordId(data.talhaoId) || !validText(data.variedade, false, 120)
+        || (data.plantio !== undefined && !validDate(data.plantio))
+        || (data.colheitaPrevista !== undefined && !validDate(data.colheitaPrevista))
+        || (data.plantio && data.colheitaPrevista && data.colheitaPrevista < data.plantio)
+        || (data.status !== undefined && !['planejada', 'em_andamento', 'encerrada'].includes(data.status))) {
+        return 'invalid-crop-season';
+      }
+    } else if (data.kind === 'insumo') {
+      if (!validText(data.nome, true, 120) || !validText(data.unidade, true, 30)
+        || !validText(data.categoria, false, 80)
+        || !validOptionalAmount(data.estoqueMinimo)) return 'invalid-crop-input';
+    } else if (!cropOperations.includes(data.operacao)
+      || (data.operacao === 'estoque_entrada'
+        ? (data.safraId !== undefined && !validRecordId(data.safraId))
+          || (data.talhaoId !== undefined && !validRecordId(data.talhaoId))
+        : !validRecordId(data.safraId) || !validRecordId(data.talhaoId))
+      || !validDate(data.data) || !validText(data.descricao, false, 500)
+      || !validText(data.observacoes, false, 2000)
+      || !validText(data.responsavel, false, 120)
+      || !validText(data.unidadeProducao, false, 30)
+      || !validOptionalAmount(data.areaHa, true)
+      || !validOptionalAmount(data.quantidade, true)
+      || !validOptionalAmount(data.producao, true)
+      || !validOptionalAmount(data.chuvaMm)
+      || (data.inputId !== undefined && !validRecordId(data.inputId))
+      || ((data.inputId === undefined) !== (data.quantidade === undefined))
+      || (['estoque_entrada', 'estoque_saida'].includes(data.operacao) && !data.inputId)
+      || (data.operacao === 'chuva' && data.chuvaMm === undefined)
+      || (data.operacao === 'colheita' && (!data.areaHa || !data.producao || !data.unidadeProducao))
+      || (data.operacao === 'estoque_entrada' && (data.safraId === undefined) !== (data.talhaoId === undefined))) {
+      return 'invalid-crop-activity';
+    }
   }
   return null;
 }

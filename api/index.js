@@ -1,7 +1,7 @@
 import { createHmac, timingSafeEqual, randomUUID } from 'node:crypto';
 import { validRecordId, validateRecordData, validateRestoreRecords } from '../shared/data.js';
 
-const collections = new Set(['config', 'lancamentos', 'contas', 'vacas', 'bezerros']);
+const collections = new Set(['config', 'lancamentos', 'contas', 'vacas', 'bezerros', 'lavouras']);
 const cookieName = 'cf_session';
 const sessionDuration = 7 * 24 * 60 * 60;
 const photoBucket = 'animal-photos';

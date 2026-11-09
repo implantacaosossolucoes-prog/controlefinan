@@ -1,5 +1,5 @@
 create table if not exists public.records (
-  collection text not null check (collection in ('config', 'lancamentos', 'contas', 'vacas', 'bezerros')),
+  collection text not null check (collection in ('config', 'lancamentos', 'contas', 'vacas', 'bezerros', 'lavouras')),
   id text not null,
   data jsonb not null,
   updated_at timestamptz not null default now(),
@@ -8,7 +8,7 @@ create table if not exists public.records (
 
 create table if not exists public.deletion_audit (
   id bigint generated always as identity primary key,
-  collection text not null check (collection in ('config', 'lancamentos', 'contas', 'vacas', 'bezerros')),
+  collection text not null check (collection in ('config', 'lancamentos', 'contas', 'vacas', 'bezerros', 'lavouras')),
   record_id text not null,
   record_data jsonb not null,
   reason text not null check (length(btrim(reason)) between 1 and 1000),
@@ -44,7 +44,12 @@ with check (bucket_id <> 'animal-photos');
 alter table public.records drop constraint if exists records_collection_check;
 alter table public.records
   add constraint records_collection_check
-  check (collection in ('config', 'lancamentos', 'contas', 'vacas', 'bezerros'));
+  check (collection in ('config', 'lancamentos', 'contas', 'vacas', 'bezerros', 'lavouras'));
+
+alter table public.deletion_audit drop constraint if exists deletion_audit_collection_check;
+alter table public.deletion_audit
+  add constraint deletion_audit_collection_check
+  check (collection in ('config', 'lancamentos', 'contas', 'vacas', 'bezerros', 'lavouras'));
 
 alter table public.records enable row level security;
 revoke all on table public.records from public, anon, authenticated;
@@ -108,7 +113,7 @@ as $$
 declare
   deleted_data jsonb;
 begin
-  if p_collection is null or p_collection not in ('config', 'lancamentos', 'contas', 'vacas', 'bezerros')
+  if p_collection is null or p_collection not in ('config', 'lancamentos', 'contas', 'vacas', 'bezerros', 'lavouras')
     or p_record_id is null or p_record_id !~ '^[A-Za-z0-9_-]{1,128}$'
     or p_reason is null or length(btrim(p_reason)) not between 1 and 1000
     or p_deleted_by is null or p_deleted_by not in ('gabriel', 'alipio') then
@@ -168,7 +173,7 @@ begin
     item_collection := item ->> 'collection';
     item_id := item ->> 'id';
     if item_collection is null or item_id is null
-      or item_collection not in ('config', 'lancamentos', 'contas', 'vacas', 'bezerros')
+      or item_collection not in ('config', 'lancamentos', 'contas', 'vacas', 'bezerros', 'lavouras')
       or item_id !~ '^[A-Za-z0-9_-]{1,128}$' then
       raise exception 'Invalid restore identifier';
     end if;

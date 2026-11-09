@@ -251,6 +251,7 @@ button:disabled{cursor:wait;opacity:.6}
       <button class="nav-item is-active" type="button" data-view="dashboard" aria-current="page"><span class="nav-icon" aria-hidden="true">▦</span>DASHBOARD</button>
     <button class="nav-item" type="button" data-view="movements"><span class="nav-icon" aria-hidden="true">↕</span>Lançamentos</button>
     <button class="nav-item" type="button" data-view="finance"><span class="nav-icon" aria-hidden="true">$</span>Financeiro</button>
+    <button class="nav-item" type="button" data-view="crops"><span class="nav-icon" aria-hidden="true">🌾</span>Lavouras</button>
     <div class="nav-group">
       <button class="nav-item nav-toggle" type="button" data-menu-toggle="livestock" aria-expanded="false" aria-controls="livestockSubmenu"><span class="nav-icon" aria-hidden="true">🐄</span>Agropecuária<span class="nav-chevron" aria-hidden="true">›</span></button>
       <div class="nav-submenu" id="livestockSubmenu" hidden>
@@ -303,7 +304,7 @@ button:disabled{cursor:wait;opacity:.6}
     <button type="button" id="importBackupButton" class="secondary-button">Restaurar backup JSON</button>
     <input id="backupFile" type="file" accept="application/json,.json">
   </div>
-  <small style="color:var(--mut)">O backup contém lançamentos, contas, vacas, bezerros e saldo inicial. Fotos ficam no armazenamento privado e não são incluídas no arquivo JSON.</small>
+  <small style="color:var(--mut)">O backup contém lançamentos, contas, animais, lavouras e saldo inicial. Fotos ficam no armazenamento privado e não são incluídas no arquivo JSON.</small>
 </div>
 <div class="card" id="catCard" hidden>
   <div class="top"><h2>Saídas por categoria</h2></div>
@@ -330,6 +331,14 @@ button:disabled{cursor:wait;opacity:.6}
     <datalist id="cats"><option>Alimentação</option><option>Moradia</option><option>Transporte</option><option>Saúde</option><option>Lazer</option><option>Salário</option><option>Outros</option></datalist>
     <input id="date" type="date">
     <input id="who" placeholder="Quem lançou">
+  </div>
+  <div class="row" id="cropExpenseFields" hidden>
+    <select id="movementCropSeason" aria-label="Vincular saída à safra">
+      <option value="">Vincular saída a uma safra (opcional)</option>
+    </select>
+    <select id="movementCropPlot" aria-label="Vincular saída ao talhão">
+      <option value="">Vincular saída a um talhão (opcional)</option>
+    </select>
   </div>
   <button id="add">Lançar</button>
 </div>
@@ -413,6 +422,96 @@ button:disabled{cursor:wait;opacity:.6}
 </div>
 </section>
 
+<section class="workspace-view" id="view-crops" data-view-panel="crops" hidden>
+<p style="color:var(--mut);margin:0 0 12px">Registre milho, soja, aveia e feijão. Cadastre despesas em <strong>Lançamentos</strong> e vincule-as à safra ou ao talhão para acompanhar custos sem duplicar o financeiro.</p>
+<div class="sum extra">
+  <div class="card"><small>Talhões</small><b id="cropPlotCount">0</b></div>
+  <div class="card"><small>Safras em andamento</small><b id="cropSeasonCount">0</b></div>
+  <div class="card"><small>Área plantada</small><b id="cropAreaTotal">0 ha</b></div>
+  <div class="card"><small>Estoque baixo</small><b id="cropLowStockCount">0</b></div>
+</div>
+<div class="card">
+  <div class="top"><h2>Talhões</h2></div>
+  <div id="cropPlotForm">
+    <div class="row">
+      <input id="cropPlotName" maxlength="100" placeholder="Nome do talhão">
+      <input id="cropPlotArea" type="number" inputmode="decimal" min="0.01" step="0.01" placeholder="Área (ha)">
+      <input id="cropPlotNotes" maxlength="1000" placeholder="Observações (opcional)">
+    </div>
+    <button type="button" id="cropPlotAdd">Cadastrar talhão</button>
+  </div>
+  <div id="cropPlots" style="margin-top:8px"></div>
+</div>
+<div class="card">
+  <div class="top"><h2>Safras</h2></div>
+  <div id="cropSeasonForm">
+    <div class="row">
+      <select id="cropSeasonPlot" aria-label="Talhão da safra"><option value="">Selecione o talhão</option></select>
+      <select id="cropSeasonCulture" aria-label="Cultura">
+        <option value="milho">Milho</option><option value="soja">Soja</option><option value="aveia">Aveia</option><option value="feijao">Feijão</option>
+      </select>
+      <input id="cropSeasonName" maxlength="80" placeholder="Identificação da safra (ex.: 2026/27)">
+      <input id="cropSeasonVariety" maxlength="120" placeholder="Variedade (opcional)">
+    </div>
+    <div class="row">
+      <label class="photo-field">Plantio previsto/realizado<input id="cropSeasonPlanting" type="date"></label>
+      <label class="photo-field">Colheita prevista<input id="cropSeasonHarvest" type="date"></label>
+    </div>
+    <button type="button" id="cropSeasonAdd">Cadastrar safra</button>
+  </div>
+  <div id="cropSeasons" style="margin-top:8px"></div>
+</div>
+<div class="card">
+  <div class="top"><h2>Estoque de insumos</h2></div>
+  <div id="cropInputForm">
+    <div class="row">
+      <input id="cropInputName" maxlength="120" placeholder="Nome do insumo">
+      <input id="cropInputCategory" maxlength="80" placeholder="Categoria (sementes, adubo...)">
+      <input id="cropInputUnit" maxlength="30" placeholder="Unidade (kg, L, saco...)">
+      <input id="cropInputMinimum" type="number" inputmode="decimal" min="0" step="0.01" placeholder="Alerta de estoque mínimo">
+    </div>
+    <button type="button" id="cropInputAdd">Cadastrar insumo</button>
+  </div>
+  <div id="cropInputs" style="margin-top:8px"></div>
+</div>
+<div class="card">
+  <div class="top"><h2>Diário de campo</h2></div>
+  <p style="color:var(--mut);margin:0 0 10px">Registre operações, chuva, colheita e movimentações de estoque por safra e talhão.</p>
+  <div id="cropActivityForm">
+    <div class="row">
+      <select id="cropActivitySeason" aria-label="Safra da operação"><option value="">Selecione a safra</option></select>
+      <select id="cropActivityType" aria-label="Tipo de operação">
+        <option value="plantio">Plantio</option><option value="adubacao">Adubação</option><option value="pulverizacao">Pulverização</option><option value="manejo">Manejo</option><option value="colheita">Colheita</option><option value="chuva">Chuva</option><option value="estoque_entrada">Entrada de estoque</option><option value="estoque_saida">Saída de estoque</option>
+      </select>
+      <input id="cropActivityDate" type="date" aria-label="Data da operação">
+      <input id="cropActivityArea" type="number" inputmode="decimal" min="0.01" step="0.01" placeholder="Área trabalhada (ha)">
+    </div>
+    <div class="row" id="cropStockFields" hidden>
+      <select id="cropActivityInput" aria-label="Insumo movimentado"><option value="">Selecione o insumo</option></select>
+      <input id="cropActivityQuantity" type="number" inputmode="decimal" min="0.01" step="0.01" placeholder="Quantidade">
+    </div>
+    <div class="row" id="cropHarvestFields" hidden>
+      <input id="cropActivityProduction" type="number" inputmode="decimal" min="0.01" step="0.01" placeholder="Produção colhida">
+      <input id="cropActivityProductionUnit" maxlength="30" placeholder="Unidade (kg, sc...)">
+    </div>
+    <div class="row" id="cropRainFields" hidden>
+      <input id="cropActivityRain" type="number" inputmode="decimal" min="0" step="0.1" placeholder="Chuva (mm)">
+    </div>
+    <div class="row">
+      <input id="cropActivityDescription" maxlength="500" placeholder="Descrição ou serviço (opcional)">
+      <input id="cropActivityResponsible" maxlength="120" placeholder="Responsável (opcional)">
+      <input id="cropActivityNotes" maxlength="2000" placeholder="Observações (opcional)">
+    </div>
+    <button type="button" id="cropActivityAdd">Registrar no diário</button>
+  </div>
+  <div class="toolbar">
+    <select id="cropActivityFilter" aria-label="Filtrar diário por safra"><option value="">Todas as safras</option></select>
+    <input id="cropActivitySearch" type="search" placeholder="Buscar no diário de campo">
+  </div>
+  <div id="cropActivities"></div>
+</div>
+</section>
+
 <section class="workspace-view" id="view-finance" data-view-panel="finance" hidden>
 <div class="card" id="billCard">
   <div class="top"><h2>Contas a pagar</h2><b id="billTotal" class="out"></b></div>
@@ -450,6 +549,7 @@ button:disabled{cursor:wait;opacity:.6}
       <option value="contas">Contas</option>
       <option value="vacas">Vacas</option>
       <option value="bezerros">Bezerros</option>
+      <option value="lavouras">Lavouras</option>
       <option value="config">Configurações</option>
     </select>
     <select id="auditUser" aria-label="Filtrar por usuário">
@@ -514,7 +614,7 @@ button:disabled{cursor:wait;opacity:.6}
 import { buildCsv, calculateFinance, prepareBackup } from '/shared/data.js';
 
 const $=id=>document.getElementById(id);
-const viewTitles={dashboard:'Dashboard',movements:'Lançamentos',finance:'Financeiro',cows:'Vacas: cio e parto',calves:'Bezerros',deletions:'Histórico de exclusões',activity:'Logs do sistema'};
+const viewTitles={dashboard:'Dashboard',movements:'Lançamentos',finance:'Financeiro',crops:'Lavouras',cows:'Vacas: cio e parto',calves:'Bezerros',deletions:'Histórico de exclusões',activity:'Logs do sistema'};
 let openViews=['dashboard'],activeView='dashboard';
 function renderWorkspaceTabs(){
   $('workspaceTabs').innerHTML=openViews.map(view=>{
@@ -589,6 +689,9 @@ function validateRecord(collection,data,id=''){
     if(!['in','out'].includes(data.type))return 'Selecione entrada ou saída.';
     if(!(Number.isFinite(data.value)&&data.value>0))return 'Informe um valor maior que zero.';
     if(!validDate(data.date))return 'Informe uma data válida para o lançamento.';
+    if(data.cropSeasonId&&!crops.some(c=>c.id===data.cropSeasonId&&c.kind==='safra'))return 'Selecione uma safra válida para vincular a despesa.';
+    if(data.cropPlotId&&!crops.some(c=>c.id===data.cropPlotId&&c.kind==='talhao'))return 'Selecione um talhão válido para vincular a despesa.';
+    if(data.cropSeasonId&&data.cropPlotId&&cropById(data.cropSeasonId)?.talhaoId!==data.cropPlotId)return 'O talhão selecionado não pertence à safra informada.';
   }
   if(collection==='contas'){
     if(!data.desc.trim())return 'Informe a descrição da conta.';
@@ -610,9 +713,22 @@ function validateRecord(collection,data,id=''){
     const tag=data.brinco.trim().toLocaleLowerCase();
     if(calves.some(c=>c.id!==id&&(c.brinco||'').trim().toLocaleLowerCase()===tag))return 'Já existe um bezerro cadastrado com esse número de brinco.';
   }
+  if(collection==='lavouras'){
+    if(data.kind==='talhao'&&(!data.nome.trim()||!(Number.isFinite(data.areaHa)&&data.areaHa>0)))return 'Informe o nome e uma área válida para o talhão.';
+    if(data.kind==='safra'&&(!data.nome.trim()||!data.talhaoId||!['milho','soja','aveia','feijao'].includes(data.cultura)))return 'Informe a cultura, identificação e talhão da safra.';
+    if(data.kind==='insumo'&&(!data.nome.trim()||!data.unidade.trim()))return 'Informe o nome e a unidade do insumo.';
+    if(data.kind==='atividade'){
+      if((data.operacao!=='estoque_entrada'&&(!data.safraId||!data.talhaoId))||!validDate(data.data))return 'Selecione uma safra e informe uma data válida para a operação.';
+      if(data.inputId&&!(Number.isFinite(data.quantidade)&&data.quantidade>0))return 'Informe uma quantidade válida para o insumo.';
+      if(['estoque_entrada','estoque_saida'].includes(data.operacao)&&!data.inputId)return 'Selecione o insumo para movimentar o estoque.';
+      if(data.operacao==='chuva'&&!(Number.isFinite(data.chuvaMm)&&data.chuvaMm>=0))return 'Informe a chuva em milímetros.';
+      if(data.operacao==='colheita'&&(!(Number.isFinite(data.areaHa)&&data.areaHa>0)||!(Number.isFinite(data.producao)&&data.producao>0)||!data.unidadeProducao))return 'Informe a área colhida, a produção e a unidade.';
+    }
+  }
   return '';
 }
 $('date').value=iso(today);
+$('cropActivityDate').value=iso(today);
 $('month').value=iso(today).slice(0,7);
 $('dashboardMonth').value=iso(today).slice(0,7);
 $('dashboardMonth').onchange=render;
@@ -622,6 +738,7 @@ try{$('who').value=localStorage.getItem('cf_who')||''}catch(e){}
 document.querySelectorAll('.seg button').forEach(b=>b.onclick=()=>{
   type=b.dataset.t;
   document.querySelectorAll('.seg button').forEach(x=>x.classList.toggle('on',x===b));
+  renderCropExpenseFields();
 });
 
 function render(){
@@ -648,12 +765,170 @@ function render(){
   $('list').innerHTML=list.length?list.map(i=>{
     const [y,mo,d]=validDate(i.date)?i.date.split('-'):['','','Data inválida'];
     const typeClass=i.type==='in'?'in':'out';
-    return `<div class="item"><div class="d"><div>${esc(i.desc||'(sem descrição)')}</div><small>${d}/${mo}/${y}${i.cat?' · '+esc(i.cat):''}${i.who?' · '+esc(i.who):''}</small></div><div class="v ${typeClass}">${i.type==='in'?'+':'−'} ${brl(Number.isFinite(i.value)?i.value:0)}</div>${canWrite?`<div class="item-actions"><button class="record-edit x" data-id="${esc(i.id)}" title="Editar lançamento" aria-label="Editar lançamento">✎</button><button class="delete-record x" data-id="${esc(i.id)}" title="Excluir lançamento" aria-label="Excluir lançamento">✕</button></div>`:''}</div>`}).join(''):'<div class="empty">'+(query?'Nenhum lançamento corresponde à busca.':'Nenhum lançamento neste mês.')+'</div>';
+    const linkedSeason=cropById(i.cropSeasonId),linkedPlot=cropById(i.cropPlotId);
+    return `<div class="item"><div class="d"><div>${esc(i.desc||'(sem descrição)')}</div><small>${d}/${mo}/${y}${i.cat?' · '+esc(i.cat):''}${i.who?' · '+esc(i.who):''}${linkedSeason?' · Safra: '+esc(linkedSeason.nome):''}${linkedPlot?' · Talhão: '+esc(linkedPlot.nome):''}</small></div><div class="v ${typeClass}">${i.type==='in'?'+':'−'} ${brl(Number.isFinite(i.value)?i.value:0)}</div>${canWrite?`<div class="item-actions"><button class="record-edit x" data-id="${esc(i.id)}" title="Editar lançamento" aria-label="Editar lançamento">✎</button><button class="delete-record x" data-id="${esc(i.id)}" title="Excluir lançamento" aria-label="Excluir lançamento">✕</button></div>`:''}</div>`}).join(''):'<div class="empty">'+(query?'Nenhum lançamento corresponde à busca.':'Nenhum lançamento neste mês.')+'</div>';
+  renderCropModule();
 }
 $('month').onchange=render;
 $('movementSearch').oninput=render;
 $('clearMovementFilters').onclick=()=>{$('month').value='';$('movementSearch').value='';render()};
-let bills=[],barmed=null;
+let bills=[],barmed=null,crops=[];
+const cropCultureLabels={milho:'Milho',soja:'Soja',aveia:'Aveia',feijao:'Feijão'};
+const cropOperationLabels={plantio:'Plantio',adubacao:'Adubação',pulverizacao:'Pulverização',manejo:'Manejo',colheita:'Colheita',chuva:'Chuva',estoque_entrada:'Entrada de estoque',estoque_saida:'Saída de estoque'};
+const cropRecords=kind=>crops.filter(record=>record.kind===kind);
+const cropById=id=>crops.find(record=>record.id===id);
+function cropStockBalance(inputId){
+  return cropRecords('atividade').reduce((total,activity)=>{
+    if(activity.inputId!==inputId||!Number.isFinite(activity.quantidade))return total;
+    return total+(activity.operacao==='estoque_entrada'?activity.quantidade:-activity.quantidade);
+  },0);
+}
+function setOptions(select,placeholder,records,label,selected=''){
+  select.innerHTML=`<option value="">${placeholder}</option>`+records.map(record=>`<option value="${esc(record.id)}"${record.id===selected?' selected':''}>${esc(label(record))}</option>`).join('');
+}
+function cropExpenseTotal(seasonId,plotId=''){
+  return items.filter(item=>item.type==='out'&&(seasonId&&item.cropSeasonId===seasonId||!seasonId&&plotId&&item.cropPlotId===plotId))
+    .reduce((total,item)=>total+(Number.isFinite(item.value)?item.value:0),0);
+}
+function renderCropSelects(){
+  const plots=cropRecords('talhao').sort((a,b)=>a.nome.localeCompare(b.nome,'pt-BR'));
+  const seasons=cropRecords('safra').sort((a,b)=>a.nome.localeCompare(b.nome,'pt-BR'));
+  const inputs=cropRecords('insumo').sort((a,b)=>a.nome.localeCompare(b.nome,'pt-BR'));
+  setOptions($('cropSeasonPlot'),'Selecione o talhão',plots,p=>`${p.nome} · ${p.areaHa} ha`,$('cropSeasonPlot').value);
+  setOptions($('cropActivitySeason'),'Selecione a safra',seasons,s=>`${cropCultureLabels[s.cultura]||s.cultura} · ${s.nome}`,$('cropActivitySeason').value);
+  setOptions($('cropActivityFilter'),'Todas as safras',seasons,s=>`${cropCultureLabels[s.cultura]||s.cultura} · ${s.nome}`,$('cropActivityFilter').value);
+  setOptions($('cropActivityInput'),'Selecione o insumo',inputs,i=>`${i.nome} (${i.unidade})`,$('cropActivityInput').value);
+  const selectedSeason=$('movementCropSeason').value;
+  setOptions($('movementCropSeason'),'Vincular saída a uma safra (opcional)',seasons,s=>`${cropCultureLabels[s.cultura]||s.cultura} · ${s.nome}`,selectedSeason);
+  const selectedPlot=$('movementCropPlot').value;
+  setOptions($('movementCropPlot'),'Vincular saída a um talhão (opcional)',plots,p=>p.nome,selectedPlot);
+}
+function renderCropModule(){
+  renderCropSelects();
+  const plots=cropRecords('talhao');
+  const seasons=cropRecords('safra');
+  const inputsList=cropRecords('insumo');
+  const activities=cropRecords('atividade');
+  $('cropPlotCount').textContent=String(plots.length);
+  $('cropSeasonCount').textContent=String(seasons.filter(season=>season.status!=='encerrada').length);
+  $('cropAreaTotal').textContent=seasons.filter(season=>season.status!=='encerrada').reduce((total,season)=>total+(cropById(season.talhaoId)?.areaHa||0),0).toLocaleString('pt-BR',{maximumFractionDigits:2})+' ha';
+  $('cropLowStockCount').textContent=String(inputsList.filter(input=>cropStockBalance(input.id)<0||input.estoqueMinimo>0&&cropStockBalance(input.id)<=input.estoqueMinimo).length);
+  $('cropPlots').innerHTML=plots.length?plots.sort((a,b)=>a.nome.localeCompare(b.nome,'pt-BR')).map(plot=>`<div class="bill"><div class="d"><div>🌱 ${esc(plot.nome)}</div><small>${plot.areaHa.toLocaleString('pt-BR')} ha${plot.observacoes?' · '+esc(plot.observacoes):''} · Despesas vinculadas: ${brl(cropExpenseTotal('',plot.id))}</small></div>${canWrite?`<div class="item-actions"><button class="record-edit x" data-id="${esc(plot.id)}" title="Editar talhão" aria-label="Editar talhão">✎</button><button class="crop-delete x" data-id="${esc(plot.id)}" data-label="${esc(plot.nome)}" title="Excluir talhão">✕</button></div>`:''}</div>`).join(''):'<div class="empty">Cadastre os talhões da propriedade.</div>';
+  $('cropSeasons').innerHTML=seasons.length?seasons.sort((a,b)=>b.nome.localeCompare(a.nome,'pt-BR')).map(season=>{
+    const plot=cropById(season.talhaoId);
+    const harvests=activities.filter(activity=>activity.safraId===season.id&&activity.operacao==='colheita');
+    const produced=harvests.reduce((sum,activity)=>sum+(activity.producao||0),0);
+    const harvestedArea=harvests.reduce((sum,activity)=>sum+(activity.areaHa||0),0);
+    const yieldText=harvestedArea?`${(produced/harvestedArea).toLocaleString('pt-BR',{maximumFractionDigits:2})} ${esc(harvests.find(activity=>activity.unidadeProducao)?.unidadeProducao||'unid.')}/ha`:'Sem colheita registrada';
+    const costs=cropExpenseTotal(season.id);
+    return `<div class="bill"><div class="d"><div>🌾 ${esc(cropCultureLabels[season.cultura]||season.cultura)} · ${esc(season.nome)}</div><small>Talhão: ${esc(plot?.nome||'não encontrado')}${plot?` · ${plot.areaHa.toLocaleString('pt-BR')} ha`:''} · ${season.status==='encerrada'?'Encerrada':season.status==='planejada'?'Planejada':'Em andamento'}</small><small>${season.plantio?'Plantio: '+dd(season.plantio):''}${season.colheitaPrevista?' · Colheita prevista: '+dd(season.colheitaPrevista):''}${season.variedade?' · Variedade: '+esc(season.variedade):''}</small><small>${yieldText} · Despesas vinculadas: ${brl(costs)}</small></div>${canWrite?`<div class="item-actions"><button class="record-edit x" data-id="${esc(season.id)}" title="Editar safra" aria-label="Editar safra">✎</button><button class="crop-delete x" data-id="${esc(season.id)}" data-label="${esc(season.nome)}" title="Excluir safra">✕</button></div>`:''}</div>`;
+  }).join(''):'<div class="empty">Cadastre uma safra para começar a registrar operações.</div>';
+  $('cropInputs').innerHTML=inputsList.length?inputsList.sort((a,b)=>a.nome.localeCompare(b.nome,'pt-BR')).map(input=>{
+    const balance=cropStockBalance(input.id),low=balance<0||input.estoqueMinimo>0&&balance<=input.estoqueMinimo;
+    return `<div class="bill"><div class="d"><div>${esc(input.nome)}${input.categoria?' · '+esc(input.categoria):''}</div><small class="${low?'late':''}">Saldo: ${balance.toLocaleString('pt-BR',{maximumFractionDigits:2})} ${esc(input.unidade)}${input.estoqueMinimo>0?' · mínimo '+input.estoqueMinimo:''}${low?' · Estoque baixo':''}</small></div>${canWrite?`<div class="item-actions"><button class="record-edit x" data-id="${esc(input.id)}" title="Editar insumo" aria-label="Editar insumo">✎</button><button class="crop-delete x" data-id="${esc(input.id)}" data-label="${esc(input.nome)}" title="Excluir insumo">✕</button></div>`:''}</div>`;
+  }).join(''):'<div class="empty">Cadastre sementes, fertilizantes, defensivos ou outros insumos.</div>';
+  const filter=$('cropActivityFilter').value,query=$('cropActivitySearch').value.trim().toLocaleLowerCase();
+  const visible=activities.filter(activity=>{
+    const season=cropById(activity.safraId),plot=cropById(activity.talhaoId),input=cropById(activity.inputId);
+    return (!filter||activity.safraId===filter)&&(!query||[activity.descricao,activity.observacoes,activity.responsavel,season?.nome,plot?.nome,input?.nome].join(' ').toLocaleLowerCase().includes(query));
+  }).sort((a,b)=>b.data.localeCompare(a.data));
+  $('cropActivities').innerHTML=visible.length?visible.map(activity=>{
+    const season=cropById(activity.safraId),plot=cropById(activity.talhaoId),input=cropById(activity.inputId);
+    const stockText=activity.inputId?` · ${esc(input?.nome||'Insumo removido')}: ${activity.operacao==='estoque_entrada'?'+':'−'}${activity.quantidade} ${esc(input?.unidade||'')}`:'';
+    const details=activity.operacao==='chuva'?`${activity.chuvaMm} mm de chuva`
+      :activity.operacao==='colheita'?`${activity.producao} ${esc(activity.unidadeProducao||'unid.')} em ${activity.areaHa} ha · ${(activity.producao/activity.areaHa).toLocaleString('pt-BR',{maximumFractionDigits:2})} ${esc(activity.unidadeProducao||'unid.')}/ha`
+      :`${activity.areaHa?activity.areaHa+' ha · ':''}${esc(activity.descricao||'')}${stockText}`;
+    return `<div class="item"><div class="d"><div>${esc(cropOperationLabels[activity.operacao]||activity.operacao)}${plot?' · '+esc(plot.nome):''}</div><small>${dd(activity.data)} · ${esc(season?.nome||(activity.operacao==='estoque_entrada'?'Estoque geral':'Safra indisponível'))}${details?' · '+details:''}${activity.responsavel?' · '+esc(activity.responsavel):''}</small>${activity.observacoes?`<small>${esc(activity.observacoes)}</small>`:''}</div>${canWrite?`<div class="item-actions"><button class="record-edit x" data-id="${esc(activity.id)}" title="Editar atividade" aria-label="Editar atividade">✎</button><button class="crop-delete x" data-id="${esc(activity.id)}" data-label="${esc(cropOperationLabels[activity.operacao]||'Atividade')}" title="Excluir atividade">✕</button></div>`:''}</div>`;
+  }).join(''):'<div class="empty">Nenhuma atividade encontrada.</div>';
+}
+function resetCropActivityFields(){
+  const type=$('cropActivityType').value;
+  $('cropStockFields').hidden=!['plantio','estoque_entrada','estoque_saida','adubacao','pulverizacao'].includes(type);
+  $('cropHarvestFields').hidden=type!=='colheita';
+  $('cropRainFields').hidden=type!=='chuva';
+}
+function cropNumber(id){const value=$(id).value;return value===''?undefined:Number(value)}
+function renderCropExpenseFields(){
+  $('cropExpenseFields').hidden=type!=='out';
+  renderCropSelects();
+}
+$('cropPlotAdd').onclick=async()=>{
+  const data={kind:'talhao',nome:$('cropPlotName').value.trim(),areaHa:cropNumber('cropPlotArea'),observacoes:$('cropPlotNotes').value.trim()||undefined,ts:Date.now()};
+  const validation=validateRecord('lavouras',data);
+  if(validation){note(validation);return}
+  try{
+    await db.collection('lavouras').add(data);
+    $('cropPlotName').value='';$('cropPlotArea').value='';$('cropPlotNotes').value='';
+    note('');toast('✅ Talhão cadastrado.','#15803d');
+  }catch(error){note('Não foi possível cadastrar o talhão: '+error.message)}
+};
+$('cropSeasonAdd').onclick=async()=>{
+  const plantio=$('cropSeasonPlanting').value,colheitaPrevista=$('cropSeasonHarvest').value;
+  const data={kind:'safra',talhaoId:$('cropSeasonPlot').value,cultura:$('cropSeasonCulture').value,nome:$('cropSeasonName').value.trim(),variedade:$('cropSeasonVariety').value.trim()||undefined,plantio:plantio||undefined,colheitaPrevista:colheitaPrevista||undefined,status:plantio&&notFuture(plantio)?'em_andamento':'planejada',ts:Date.now()};
+  const validation=validateRecord('lavouras',data);
+  if(validation){note(validation);return}
+  try{
+    await db.collection('lavouras').add(data);
+    $('cropSeasonName').value='';$('cropSeasonVariety').value='';$('cropSeasonPlanting').value='';$('cropSeasonHarvest').value='';
+    note('');toast('✅ Safra cadastrada.','#15803d');
+  }catch(error){note('Não foi possível cadastrar a safra: '+error.message)}
+};
+$('cropInputAdd').onclick=async()=>{
+  const data={kind:'insumo',nome:$('cropInputName').value.trim(),categoria:$('cropInputCategory').value.trim()||undefined,unidade:$('cropInputUnit').value.trim(),estoqueMinimo:cropNumber('cropInputMinimum'),ts:Date.now()};
+  const validation=validateRecord('lavouras',data);
+  if(validation){note(validation);return}
+  try{
+    await db.collection('lavouras').add(data);
+    $('cropInputName').value='';$('cropInputCategory').value='';$('cropInputUnit').value='';$('cropInputMinimum').value='';
+    note('');toast('✅ Insumo cadastrado.','#15803d');
+  }catch(error){note('Não foi possível cadastrar o insumo: '+error.message)}
+};
+$('cropActivityAdd').onclick=async()=>{
+  const season=cropById($('cropActivitySeason').value),operacao=$('cropActivityType').value,inputId=$('cropActivityInput').value;
+  const data={kind:'atividade',operacao,data:$('cropActivityDate').value,areaHa:cropNumber('cropActivityArea'),descricao:$('cropActivityDescription').value.trim()||undefined,responsavel:$('cropActivityResponsible').value.trim()||undefined,observacoes:$('cropActivityNotes').value.trim()||undefined,ts:Date.now()};
+  if(season){data.safraId=season.id;data.talhaoId=season.talhaoId}
+  if(inputId){data.inputId=inputId;data.quantidade=cropNumber('cropActivityQuantity')}
+  if(operacao==='colheita'){
+    data.producao=cropNumber('cropActivityProduction');
+    data.unidadeProducao=$('cropActivityProductionUnit').value.trim()||undefined;
+  }
+  if(operacao==='chuva')data.chuvaMm=cropNumber('cropActivityRain');
+  const validation=validateRecord('lavouras',data);
+  if(validation){note(validation);return}
+  if(inputId&&operacao!=='estoque_entrada'&&data.quantidade>cropStockBalance(inputId)){
+    note('A quantidade informada é maior que o saldo disponível do insumo.');
+    return;
+  }
+  try{
+    await db.collection('lavouras').add(data);
+    $('cropActivityDescription').value='';$('cropActivityResponsible').value='';$('cropActivityNotes').value='';
+    $('cropActivityArea').value='';$('cropActivityInput').value='';$('cropActivityQuantity').value='';
+    $('cropActivityProduction').value='';$('cropActivityProductionUnit').value='';
+    $('cropActivityRain').value='';note('');
+    toast('✅ Registro adicionado ao diário de campo.','#15803d');
+  }catch(error){note('Não foi possível registrar a atividade: '+error.message)}
+};
+$('cropActivityType').onchange=resetCropActivityFields;
+$('cropActivityFilter').onchange=renderCropModule;
+$('cropActivitySearch').oninput=renderCropModule;
+$('cropActivitySeason').onchange=renderCropModule;
+$('movementCropSeason').onchange=()=>{
+  const season=cropById($('movementCropSeason').value);
+  if(season)$('movementCropPlot').value=season.talhaoId;
+};
+document.querySelector('#view-crops').addEventListener('click',event=>{
+  const edit=event.target.closest('.record-edit');
+  if(edit){const record=cropById(edit.dataset.id);if(record)openEditor('lavouras',record);return}
+  const button=event.target.closest('.crop-delete');
+  if(!button||!db)return;
+  const record=cropById(button.dataset.id);
+  if(!record)return;
+  const hasReferences=record.kind==='talhao'&&(cropRecords('safra').some(season=>season.talhaoId===record.id)||items.some(item=>item.cropPlotId===record.id))
+    ||record.kind==='safra'&&(cropRecords('atividade').some(activity=>activity.safraId===record.id)||items.some(item=>item.cropSeasonId===record.id))
+    ||record.kind==='insumo'&&cropRecords('atividade').some(activity=>activity.inputId===record.id);
+  if(hasReferences){note('Este registro está ligado a outros dados e não pode ser excluído.');return}
+  openRecordDeletion('lavouras',record.id,button.dataset.label||'Registro de lavoura','✅ Registro de lavoura excluído.');
+});
 const dd=s=>{const [y,m,d]=String(s||'').split('-');return `${esc(d)}/${esc(m)}/${esc(y)}`};
 function renderBills(){
   const t=iso(new Date());
@@ -1027,16 +1302,33 @@ const editorFields={
   bezerros:[['descricao','Descrição do bezerro','text'],['nascimento','Data de nascimento','date'],['brinco','Número do brinco','text','numeric']]
 };
 const editorTitles={lancamentos:'Editar lançamento',contas:'Editar conta',vacas:'Editar vaca',bezerros:'Editar bezerro'};
+function cropEditorFields(record){
+  if(record.kind==='talhao')return [['nome','Nome do talhão','text'],['areaHa','Área (ha)','number'],['observacoes','Observações','text','',false]];
+  if(record.kind==='safra')return [['cultura','Cultura','cropCulture'],['nome','Identificação da safra','text'],['talhaoId','Talhão','cropPlot'],['variedade','Variedade','text','',false],['plantio','Data do plantio','date','',false],['colheitaPrevista','Colheita prevista','date','',false],['status','Situação','cropStatus']];
+  if(record.kind==='insumo')return [['nome','Nome do insumo','text'],['categoria','Categoria','text','',false],['unidade','Unidade','text'],['estoqueMinimo','Estoque mínimo','cropMinimum','',false]];
+  return [['operacao','Operação','cropOperation'],['safraId','Safra (opcional para entrada de estoque)','cropSeason','',false],['data','Data','date'],['areaHa','Área trabalhada (ha)','cropMinimum','',false],['inputId','Insumo','cropInput','',false],['quantidade','Quantidade de insumo','cropMinimum','',false],['producao','Produção colhida','cropMinimum','',false],['unidadeProducao','Unidade da produção','text','',false],['chuvaMm','Chuva (mm)','cropRain','',false],['descricao','Descrição','text','',false],['responsavel','Responsável','text','',false],['observacoes','Observações','text','',false]];
+}
 function openEditor(collection,record){
   if(!canWrite)return;
   recordEditor={collection,id:record.id,data:{...record}};
-  $('editorTitle').textContent=editorTitles[collection];
-  $('editorFields').innerHTML=editorFields[collection].map(([name,label,inputType,keyboardMode,required=true])=>{
+  $('editorTitle').textContent=collection==='lavouras'?`Editar ${record.kind==='talhao'?'talhão':record.kind==='safra'?'safra':record.kind==='insumo'?'insumo':'atividade'}`:editorTitles[collection];
+  const fields=collection==='lavouras'?cropEditorFields(record):editorFields[collection];
+  $('editorFields').innerHTML=fields.map(([name,label,inputType,keyboardMode,required=true])=>{
     const value=record[name]??'';
-    if(inputType==='select')return `<label class="edit-field">${label}<select name="${name}" required><option value="in"${value==='in'?' selected':''}>Entrada</option><option value="out"${value==='out'?' selected':''}>Saída</option></select></label>`;
-    const numberAttrs=inputType==='number'?' inputmode="decimal" min="0.01" step="0.01"':'';
+    const choices=inputType==='select'?[['in','Entrada'],['out','Saída']]
+      :inputType==='cropCulture'?Object.entries(cropCultureLabels)
+      :inputType==='cropOperation'?Object.entries(cropOperationLabels)
+      :inputType==='cropStatus'?[['planejada','Planejada'],['em_andamento','Em andamento'],['encerrada','Encerrada']]
+      :inputType==='cropPlot'?cropRecords('talhao').map(item=>[item.id,item.nome])
+      :inputType==='cropSeason'?cropRecords('safra').map(item=>[item.id,`${cropCultureLabels[item.cultura]||item.cultura} · ${item.nome}`])
+      :inputType==='cropInput'?cropRecords('insumo').map(item=>[item.id,`${item.nome} (${item.unidade})`])
+      :null;
+    if(choices)return `<label class="edit-field">${label}<select name="${name}"${required?' required':''}>${inputType==='cropSeason'||inputType==='cropInput'?`<option value=""${value?'':' selected'}>Não informado</option>`:''}${choices.map(([key,text])=>`<option value="${esc(key)}"${value===key?' selected':''}>${esc(text)}</option>`).join('')}</select></label>`;
+    const isNumber=['number','cropMinimum','cropRain'].includes(inputType),inputTypeName=isNumber?'number':inputType;
+    const minimum=inputType==='cropRain'||inputType==='cropMinimum'?'0':'0.01';
+    const numberAttrs=isNumber?` inputmode="decimal" min="${minimum}" step="0.01"`:'';
     const inputMode=keyboardMode==='numeric'?' inputmode="numeric"':'';
-    return `<label class="edit-field">${label}<input name="${name}" type="${inputType}" value="${esc(value)}"${numberAttrs}${inputMode}${required?' required':''}></label>`;
+    return `<label class="edit-field">${label}<input name="${name}" type="${inputTypeName}" value="${esc(value)}"${numberAttrs}${inputMode}${required?' required':''}></label>`;
   }).join('');
   $('editor').hidden=false;
   $('editorFields').querySelector('input,select')?.focus();
@@ -1056,7 +1348,34 @@ $('editorForm').onsubmit=async e=>{
     if(values.partoRealizado)data.partoRealizado=values.partoRealizado;
     else delete data.partoRealizado;
   }
-  else data={...recordEditor.data,descricao:values.descricao.trim(),nascimento:values.nascimento,brinco:values.brinco.trim(),ts:Date.now()};
+  else if(collection==='bezerros')data={...recordEditor.data,descricao:values.descricao.trim(),nascimento:values.nascimento,brinco:values.brinco.trim(),ts:Date.now()};
+  else{
+    data={...recordEditor.data,...values,ts:Date.now()};
+    for(const field of ['areaHa','estoqueMinimo','quantidade','producao','chuvaMm']){
+      if(values[field]==='')delete data[field];
+      else if(values[field]!==undefined)data[field]=Number(values[field]);
+    }
+    for(const field of ['observacoes','variedade','plantio','colheitaPrevista','categoria','safraId','inputId','unidadeProducao','descricao','responsavel']){
+      if(values[field]==='')delete data[field];
+    }
+    if(data.kind==='atividade'){
+      const season=cropById(data.safraId);
+      if(season){data.safraId=season.id;data.talhaoId=season.talhaoId}
+      else if(data.operacao==='estoque_entrada'){delete data.safraId;delete data.talhaoId}
+    }
+  }
+  if(collection==='lavouras'&&recordEditor.data.kind==='safra'
+    &&recordEditor.data.talhaoId!==data.talhaoId
+    &&(cropRecords('atividade').some(activity=>activity.safraId===id)||items.some(item=>item.cropSeasonId===id))){
+    note('Não é possível trocar o talhão de uma safra que já possui atividades ou despesas vinculadas.');
+    return;
+  }
+  if(collection==='lavouras'&&recordEditor.data.kind==='insumo'
+    &&recordEditor.data.unidade!==data.unidade
+    &&cropRecords('atividade').some(activity=>activity.inputId===id)){
+    note('Não é possível trocar a unidade de um insumo que já possui movimentações.');
+    return;
+  }
   const validation=validateRecord(collection,data,id);
   if(validation){note(validation);return}
   $('editorSave').disabled=true;
@@ -1069,7 +1388,7 @@ $('editorForm').onsubmit=async e=>{
 };
 document.addEventListener('keydown',e=>{if(e.key==='Escape'&&!$('editor').hidden){$('editor').hidden=true;recordEditor=null}});
 
-const backupCollections=['lancamentos','contas','vacas','bezerros'];
+const backupCollections=['lancamentos','contas','vacas','bezerros','lavouras'];
 function downloadFile(filename,content,type){
   const blob=new Blob([content],{type}),url=URL.createObjectURL(blob),anchor=document.createElement('a');
   anchor.href=url;anchor.download=filename;anchor.click();
@@ -1078,15 +1397,19 @@ function downloadFile(filename,content,type){
 function allExportRows(){
   return [
     {tipo:'Saldo inicial',data:'',descricao:'Saldo inicial',brinco:'',categoria:'',valor:initial,status:'',responsavel:''},
-    ...items.map(i=>({tipo:i.type==='in'?'Entrada':'Saída',data:i.date,descricao:i.desc||'',brinco:'',categoria:i.cat||'',valor:i.value,status:'',responsavel:i.who||''})),
+    ...items.map(i=>({tipo:i.type==='in'?'Entrada':'Saída',data:i.date,descricao:i.desc||'',brinco:'',categoria:i.cat||'',valor:i.value,cultura:cropCultureLabels[cropById(i.cropSeasonId)?.cultura]||'',safra:cropById(i.cropSeasonId)?.nome||'',talhao:cropById(i.cropPlotId)?.nome||'',status:'',responsavel:i.who||''})),
     ...bills.map(b=>({tipo:'Conta a pagar',data:b.due,descricao:b.desc||'',brinco:'',categoria:'',valor:b.value,status:b.due<iso(new Date())?'Vencida':'Pendente',responsavel:''})),
     ...cows.map(c=>({tipo:'Vaca',data:c.cio,descricao:c.nome||'',touro:c.touro||'',brinco:'',categoria:'',valor:'',data_parto:c.partoRealizado||'',observacoes_bezerro:c.observacoesBezerro||'',status:c.partoRealizado?'Parto registrado '+dd(c.partoRealizado):'Parto previsto '+dd(c.parto),responsavel:''})),
-    ...calves.map(c=>({tipo:'Bezerro',data:c.nascimento,descricao:c.descricao||'',touro:'',brinco:c.brinco||'',categoria:'',valor:'',status:'',responsavel:''}))
+    ...calves.map(c=>({tipo:'Bezerro',data:c.nascimento,descricao:c.descricao||'',touro:'',brinco:c.brinco||'',categoria:'',valor:'',status:'',responsavel:''})),
+    ...crops.map(c=>{
+      const plot=c.kind==='talhao'?c:cropById(c.talhaoId),season=c.kind==='safra'?c:cropById(c.safraId);
+      return {tipo:`Lavoura · ${c.kind}`,data:c.data||c.plantio||'',descricao:c.nome||c.descricao||'',cultura:cropCultureLabels[c.cultura]||'',talhao:plot?.nome||'',safra:season?.nome||'',operacao:cropOperationLabels[c.operacao]||'',area_ha:c.areaHa??'',quantidade:c.quantidade??'',producao:c.producao??'',chuva_mm:c.chuvaMm??'',unidade:c.unidade||c.unidadeProducao||'',status:c.status||'',responsavel:c.responsavel||''};
+    })
   ];
 }
 $('exportCsv').onclick=()=>{
   if(!recordsLoaded){note('Aguarde a sincronização dos dados antes de exportar.');return}
-  const columns=['tipo','data','descricao','touro','brinco','categoria','valor','data_parto','observacoes_bezerro','status','responsavel'];
+  const columns=['tipo','data','descricao','touro','brinco','categoria','valor','data_parto','observacoes_bezerro','cultura','talhao','safra','operacao','area_ha','quantidade','producao','chuva_mm','unidade','status','responsavel'];
   const rows=allExportRows();
   const csv=buildCsv(columns,rows);
   downloadFile(`agroback-dados-${iso(new Date())}.csv`,'\uFEFF'+csv,'text/csv;charset=utf-8');
@@ -1095,7 +1418,7 @@ $('exportCsv').onclick=()=>{
 $('exportBackup').onclick=()=>{
   if(!db){note('Faça login para acessar os dados compartilhados.');return}
   if(!recordsLoaded){note('Aguarde a sincronização dos dados antes de baixar o backup.');return}
-  const collections=Object.fromEntries(backupCollections.map(name=>[name,(name==='lancamentos'?items:name==='contas'?bills:name==='vacas'?cows:calves).map(({id,photoAnimal,photoTag,photoAnimalVersion,photoTagVersion,...data})=>({id,...data}))]));
+  const collections=Object.fromEntries(backupCollections.map(name=>[name,(name==='lancamentos'?items:name==='contas'?bills:name==='vacas'?cows:name==='bezerros'?calves:crops).map(({id,photoAnimal,photoTag,photoAnimalVersion,photoTagVersion,...data})=>({id,...data}))]));
   collections.config=[{id:'saldo',value:initial}];
   const content=JSON.stringify({version:1,exportedAt:new Date().toISOString(),collections},null,2);
   if(new Blob([content]).size>4_000_000){note('O backup excede o limite de 4 MB para restauração. Exporte os dados em CSV ou reduza o tamanho do conjunto de dados.');return}
@@ -1125,7 +1448,7 @@ let me=null,started=false;
 const ALLOWED=['gabriel','alipio'];
 const norm=s=>s.trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'');
 const cap=n=>n.charAt(0).toUpperCase()+n.slice(1);
-const auditCollectionLabels={lancamentos:'Lançamento',contas:'Conta',vacas:'Vaca',bezerros:'Bezerro',config:'Configuração'};
+const auditCollectionLabels={lancamentos:'Lançamento',contas:'Conta',vacas:'Vaca',bezerros:'Bezerro',lavouras:'Lavoura',config:'Configuração'};
 let deletionEntries=[];
 const activityTypeLabels={login:'Entrada',logout:'Saída',click:'Clique',change:'Alteração'};
 const activityNames={
@@ -1413,6 +1736,8 @@ async function save(type){
   $('ask').hidden=true;
   const value=parseFloat($('val').value);
   const transaction={type,value,desc:$('desc').value.trim(),cat:$('cat').value.trim(),date:$('date').value||iso(new Date()),who:$('who').value.trim(),ts:Date.now()};
+  if(type==='out'&&$('movementCropSeason').value)transaction.cropSeasonId=$('movementCropSeason').value;
+  if(type==='out'&&$('movementCropPlot').value)transaction.cropPlotId=$('movementCropPlot').value;
   const validation=validateRecord('lancamentos',transaction);
   if(validation){note(validation);return}
   if(!db){note('Faça login para acessar os dados compartilhados.');return}
@@ -1421,7 +1746,7 @@ async function save(type){
   $('add').disabled=true;
   try{
     await db.collection('lancamentos').add(transaction);
-    $('desc').value='';$('val').value='';
+    $('desc').value='';$('val').value='';$('movementCropSeason').value='';$('movementCropPlot').value='';
     toast(type==='in'?'✅ Entrada lançada: '+brl(value):'✅ Saída lançada: '+brl(value),type==='in'?'#15803d':'#dc2626');
   note('')}catch(err){note('Não foi possível salvar o lançamento: '+err.message)}
   $('add').disabled=false;
@@ -1616,7 +1941,7 @@ function createSharedDb(){
 async function migrateLocalData(){
   const marker='cf_shared_migrated_v1';
   if(localStorage.getItem(marker))return;
-  for(const name of ['lancamentos','contas','vacas','bezerros','config']){
+  for(const name of ['lancamentos','contas','vacas','bezerros','lavouras','config']){
     if(name==='config'){
       const config=JSON.parse(localStorage.getItem('cf_data_v1_config')||'[]');
       for(const record of config){
@@ -1642,7 +1967,11 @@ async function startApp(){
   try{await migrateLocalData()}
   catch(error){note('Os dados locais não foram migrados: '+error.message)}
   db=createSharedDb();
-  if(!canWrite){$('formCard').hidden=true;$('billForm').hidden=true;$('cowForm').hidden=true;$('calfForm').hidden=true;$('msg').textContent='Você está em modo somente leitura.'}
+  if(!canWrite){
+    $('formCard').hidden=true;$('billForm').hidden=true;$('cowForm').hidden=true;$('calfForm').hidden=true;
+    $('cropPlotForm').hidden=true;$('cropSeasonForm').hidden=true;$('cropInputForm').hidden=true;$('cropActivityForm').hidden=true;
+    $('msg').textContent='Você está em modo somente leitura.';
+  }
   const storageError=e=>{
     if(e.status===401){location.reload();return}
     const message='Não foi possível sincronizar os dados: '+e.message;
@@ -1651,6 +1980,7 @@ async function startApp(){
   db.collection('config').doc('saldo').onSnapshot(s=>{const d=s.exists?s.data():null;initial=d&&typeof d.value==='number'?d.value:0;if(!editing)renderInit();render()},storageError);
   db.collection('vacas').onSnapshot(s=>{cows=s.docs.map(d=>({id:d.id,...d.data()}));renderCows()},storageError);
   db.collection('bezerros').onSnapshot(s=>{calves=s.docs.map(d=>({id:d.id,...d.data()}));renderCalves()},storageError);
+  db.collection('lavouras').onSnapshot(s=>{crops=s.docs.map(d=>({id:d.id,...d.data()}));renderCropModule()},storageError);
   db.collection('contas').onSnapshot(s=>{bills=s.docs.map(d=>({id:d.id,...d.data()}));renderBills()},storageError);
   db.collection('lancamentos').onSnapshot(s=>{
     items=s.docs.map(d=>({id:d.id,...d.data()}));render();

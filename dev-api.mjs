@@ -1,6 +1,6 @@
 import { randomUUID } from 'node:crypto';
 
-const collections = new Set(['config', 'lancamentos', 'contas', 'vacas', 'bezerros']);
+const collections = new Set(['config', 'lancamentos', 'contas', 'vacas', 'bezerros', 'lavouras']);
 const users = new Set(['gabriel', 'alipio']);
 const cookieName = 'cf_demo_session';
 const sessions = new Map();

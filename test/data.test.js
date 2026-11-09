@@ -128,3 +128,62 @@ test('valid restore batches retain distinct IDs and reject oversized or malforme
     { collection: 'contas', id: '"><img src=x onerror=alert(1)>', data: { desc: 'Conta', value: 25, due: '2026-01-10' } }
   ], new Date(2026, 0, 5)), /invalid-record-data/);
 });
+
+test('crop records validate plots, seasons, field activities and linked finance expenses', () => {
+  const today = new Date(2026, 0, 5);
+  const plot = { kind: 'talhao', nome: 'Talhão Norte', areaHa: 12.5 };
+  const season = {
+    kind: 'safra',
+    cultura: 'milho',
+    nome: '2025/26',
+    talhaoId: 'plot-1',
+    plantio: '2025-10-10',
+    colheitaPrevista: '2026-03-20',
+    status: 'em_andamento'
+  };
+  assert.equal(validateRecordData('lavouras', 'plot-1', plot, today), null);
+  assert.equal(validateRecordData('lavouras', 'season-1', season, today), null);
+  assert.equal(validateRecordData('lavouras', 'input-1', {
+    kind: 'insumo', nome: 'Semente', unidade: 'kg', estoqueMinimo: 50
+  }, today), null);
+  assert.equal(validateRecordData('lavouras', 'rain-1', {
+    kind: 'atividade', operacao: 'chuva', safraId: 'season-1', talhaoId: 'plot-1',
+    data: '2026-01-03', chuvaMm: 18
+  }, today), null);
+  assert.equal(validateRecordData('lavouras', 'harvest-1', {
+    kind: 'atividade', operacao: 'colheita', safraId: 'season-1', talhaoId: 'plot-1',
+    data: '2026-01-03', areaHa: 10, producao: 600, unidadeProducao: 'sc'
+  }, today), null);
+  assert.equal(validateRecordData('lavouras', 'stock-1', {
+    kind: 'atividade', operacao: 'estoque_entrada', data: '2026-01-03',
+    inputId: 'input-1', quantidade: 200
+  }, today), null);
+  assert.equal(validateRecordData('lavouras', 'harvest-2', {
+    kind: 'atividade', operacao: 'colheita', safraId: 'season-1', talhaoId: 'plot-1',
+    data: '2026-01-03', areaHa: 10, producao: 600
+  }, today), 'invalid-crop-activity');
+  assert.equal(validateRecordData('lavouras', 'stock-2', {
+    kind: 'atividade', operacao: 'estoque_entrada', data: '2026-01-03',
+    inputId: 'input-1', quantidade: -2
+  }, today), 'invalid-crop-activity');
+  assert.equal(validateRecordData('lavouras', 'season-2', {
+    ...season, cultura: 'trigo'
+  }, today), 'invalid-crop-season');
+  assert.equal(validateRecordData('lancamentos', 'expense-1', {
+    type: 'out', value: 120, date: '2026-01-03', cropSeasonId: 'season-1', cropPlotId: 'plot-1'
+  }, today), null);
+  assert.equal(validateRecordData('lancamentos', 'expense-2', {
+    type: 'in', value: 120, date: '2026-01-03', cropSeasonId: 'season-1'
+  }, today), 'invalid-movement');
+});
+
+test('crop records are included in versioned backup preparation', () => {
+  const [record] = prepareBackup({
+    version: 1,
+    collections: {
+      lavouras: [{ id: 'plot-1', kind: 'talhao', nome: 'Talhão Sul', areaHa: 8 }]
+    }
+  }, new Date(2026, 0, 5));
+  assert.equal(record.collection, 'lavouras');
+  assert.equal(record.data.nome, 'Talhão Sul');
+});

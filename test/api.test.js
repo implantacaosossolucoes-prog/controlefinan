@@ -328,6 +328,27 @@ test('record writes reject HTML-capable identifiers before reaching Supabase', a
   }
 });
 
+test('authenticated API can persist crop plots in the shared records table', async () => {
+  const cookie = await loginCookie();
+  const previousFetch = globalThis.fetch;
+  const calls = [];
+  globalThis.fetch = async (url, options) => {
+    calls.push({ url: String(url), options });
+    return new Response(null, { status: 201 });
+  };
+  try {
+    const response = await request('POST', '/api/records', {
+      collection: 'lavouras',
+      data: { kind: 'talhao', nome: 'Talhão Norte', areaHa: 12.5 }
+    }, cookie);
+    assert.equal(response.statusCode, 201);
+    assert.match(calls[0].url, /\/rest\/v1\/records$/);
+    assert.equal(JSON.parse(calls[0].options.body).collection, 'lavouras');
+  } finally {
+    globalThis.fetch = previousFetch;
+  }
+});
+
 test('paying a bill uses one transactional RPC instead of separate writes', async () => {
   const cookie = await loginCookie();
   const previousFetch = globalThis.fetch;
