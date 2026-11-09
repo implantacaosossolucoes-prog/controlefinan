@@ -241,6 +241,71 @@ button:disabled{cursor:wait;opacity:.6}
   .trend-row{grid-template-columns:78px minmax(40px,1fr) 84px;gap:6px}
   .dashboard-filter{flex-wrap:wrap}
 }
+.crop-page{--crop-green:#15803d;--crop-soft:#f0fdf4;--crop-line:#dcfce7}
+.crop-hero{position:relative;display:flex;align-items:center;justify-content:space-between;gap:20px;overflow:hidden;margin:2px 0 14px;padding:22px 24px;border:1px solid #bbf7d0;border-radius:18px;background:linear-gradient(115deg,#f0fdf4 0%,#fff 72%);color:#14532d}
+.crop-hero-copy{position:relative;z-index:1;max-width:680px}
+.crop-eyebrow{margin:0 0 5px;color:#15803d;font-size:11px;font-weight:750;letter-spacing:.1em;text-transform:uppercase}
+.crop-hero h2{margin:0;font-size:24px;line-height:1.2;letter-spacing:-.03em}
+.crop-hero p{margin:8px 0 0;color:#4b6352;font-size:14px;line-height:1.55}
+.crop-hero-mark{display:grid;width:74px;height:74px;flex:none;place-items:center;border:1px solid #bbf7d0;border-radius:24px;background:#fff9;font-size:38px;box-shadow:0 8px 24px #16653412}
+.crop-stats{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;margin-bottom:14px}
+.crop-stat{display:flex;align-items:center;gap:12px;min-width:0;padding:14px;border:1px solid var(--bd);border-radius:14px;background:var(--card);box-shadow:0 2px 8px #11182708}
+.crop-stat-icon{display:grid;width:40px;height:40px;flex:none;place-items:center;border-radius:12px;background:var(--crop-soft);font-size:20px}
+.crop-stat-label{display:block;color:var(--mut);font-size:12px}
+.crop-stat strong{display:block;margin-top:1px;font-size:20px;line-height:1.2;letter-spacing:-.025em}
+.crop-layout{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px;align-items:start}
+.crop-panel{min-width:0;margin:0;padding:18px;border-radius:16px;box-shadow:0 2px 10px #11182708}
+.crop-panel-wide{grid-column:1/-1}
+.crop-panel .top{align-items:flex-start;margin-bottom:4px}
+.crop-panel .top h2{font-size:17px;letter-spacing:-.02em}
+.crop-panel-hint{margin:4px 0 14px;color:var(--mut);font-size:13px;line-height:1.5}
+.crop-form{padding:14px;border:1px solid var(--bd);border-radius:12px;background:color-mix(in srgb,var(--bg) 62%,var(--card))}
+.crop-form .row{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:9px;margin:0 0 9px}
+.crop-form .row:last-of-type{margin-bottom:0}
+.crop-form [hidden]{display:none}
+.crop-form .crop-row-three{grid-template-columns:repeat(3,minmax(0,1fr))}
+.crop-form input,.crop-form select{width:100%;min-height:44px;background:var(--card)}
+.crop-field{display:flex;min-width:0;flex-direction:column;gap:5px;color:var(--mut);font-size:12px;font-weight:600}
+.crop-field input{width:100%;margin:0;font-size:14px}
+.crop-primary{min-height:42px;padding:9px 16px;border:1px solid #15803d;border-radius:10px;background:#15803d;color:white;font-size:13px;font-weight:700;cursor:pointer;transition:background .15s,transform .15s}
+.crop-primary:hover{transform:translateY(-1px);background:#166534}
+.crop-form>.crop-primary{width:100%;margin-top:10px}
+.crop-record-list{display:grid;gap:8px;margin-top:12px}
+.crop-record{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;min-width:0;padding:12px;border:1px solid var(--bd);border-radius:12px;background:var(--card);transition:border-color .15s,box-shadow .15s}
+.crop-record:hover{border-color:#86efac;box-shadow:0 3px 12px #1665340d}
+.crop-record-main{min-width:0;flex:1}
+.crop-record-title{display:flex;align-items:center;flex-wrap:wrap;gap:7px;font-size:14px;font-weight:700;overflow-wrap:anywhere}
+.crop-record-meta{display:block;margin-top:4px;color:var(--mut);font-size:12px;line-height:1.55;overflow-wrap:anywhere}
+.crop-badge{display:inline-flex;align-items:center;padding:3px 8px;border:1px solid var(--crop-line);border-radius:999px;background:var(--crop-soft);color:#166534;font-size:11px;font-weight:700;white-space:nowrap}
+.crop-badge.is-planned{border-color:#dbeafe;background:#eff6ff;color:#1d4ed8}
+.crop-badge.is-closed{border-color:var(--bd);background:var(--bg);color:var(--mut)}
+.crop-badge.is-warning{border-color:#fecaca;background:#fef2f2;color:#b91c1c}
+.crop-record-actions{display:flex;flex:none;align-items:center;gap:2px}
+.crop-record-actions button{width:36px;height:36px;padding:0;border:1px solid transparent;border-radius:9px}
+.crop-record-actions button:hover{border-color:var(--bd);background:var(--bg)}
+.crop-toolbar{display:grid;grid-template-columns:minmax(180px,1fr) minmax(220px,2fr);gap:8px;margin:14px 0 10px}
+.crop-toolbar input,.crop-toolbar select{width:100%;min-height:42px;background:var(--card)}
+.crop-diary{display:grid;gap:8px}
+.crop-diary-entry{display:grid;grid-template-columns:54px minmax(0,1fr) auto;align-items:start;gap:12px;padding:12px;border:1px solid var(--bd);border-radius:12px;background:var(--card)}
+.crop-diary-date{display:grid;min-height:52px;place-content:center;border-radius:10px;background:var(--crop-soft);color:#166534;text-align:center}
+.crop-diary-date strong{font-size:16px;line-height:1.2}
+.crop-diary-date small{font-size:10px;font-weight:650}
+.crop-diary-content{min-width:0}
+.crop-diary-title{display:flex;align-items:center;flex-wrap:wrap;gap:7px;font-size:13px;font-weight:700;overflow-wrap:anywhere}
+.crop-diary-text{display:block;margin-top:4px;color:var(--mut);font-size:12px;line-height:1.5;overflow-wrap:anywhere}
+.crop-empty{padding:22px 14px;border:1px dashed var(--bd);border-radius:12px;color:var(--mut);font-size:13px;text-align:center}
+:root[data-theme="dark"] .crop-hero{border-color:#24583a;background:linear-gradient(115deg,#14251b 0%,var(--card) 80%);color:#dcfce7}
+:root[data-theme="dark"] .crop-hero p{color:#a7b9aa}
+:root[data-theme="dark"] .crop-stat-icon,:root[data-theme="dark"] .crop-badge{background:#173324;color:#86efac}
+:root[data-theme="dark"] .crop-badge.is-planned{border-color:#1e3a8a;background:#172554;color:#93c5fd}
+:root[data-theme="dark"] .crop-badge.is-closed{border-color:var(--bd);background:var(--bg);color:var(--mut)}
+:root[data-theme="dark"] .crop-badge.is-warning{border-color:#7f1d1d;background:#450a0a;color:#fca5a5}
+:root[data-theme="dark"] .crop-diary-date{background:#173324;color:#86efac}
+@media(max-width:850px){.crop-stats{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:680px){.crop-layout{grid-template-columns:minmax(0,1fr)}.crop-panel-wide{grid-column:auto}.crop-hero{padding:18px}.crop-hero-mark{width:58px;height:58px;border-radius:18px;font-size:30px}}
+@media(max-width:520px){.crop-stats{gap:7px}.crop-stat{gap:9px;padding:11px}.crop-stat-icon{width:34px;height:34px;border-radius:10px;font-size:17px}.crop-stat strong{font-size:17px}.crop-hero h2{font-size:21px}.crop-form{padding:11px}.crop-form .row,.crop-form .crop-row-three{grid-template-columns:minmax(0,1fr)}.crop-toolbar{grid-template-columns:minmax(0,1fr)}.crop-diary-entry{grid-template-columns:46px minmax(0,1fr);gap:9px;padding:10px}.crop-diary-date{min-height:48px}.crop-diary-actions{grid-column:2;justify-self:end;margin-top:-5px}}
+@media(prefers-reduced-motion:reduce){.crop-primary,.crop-record{transition:none}}
+@media(prefers-color-scheme:dark){:root:not([data-theme="light"]) .crop-hero{border-color:#24583a;background:linear-gradient(115deg,#14251b 0%,var(--card) 80%);color:#dcfce7}:root:not([data-theme="light"]) .crop-hero p{color:#a7b9aa}:root:not([data-theme="light"]) .crop-stat-icon,:root:not([data-theme="light"]) .crop-badge{background:#173324;color:#86efac}:root:not([data-theme="light"]) .crop-badge.is-planned{border-color:#1e3a8a;background:#172554;color:#93c5fd}:root:not([data-theme="light"]) .crop-badge.is-closed{border-color:var(--bd);background:var(--bg);color:var(--mut)}:root:not([data-theme="light"]) .crop-badge.is-warning{border-color:#7f1d1d;background:#450a0a;color:#fca5a5}:root:not([data-theme="light"]) .crop-diary-date{background:#173324;color:#86efac}}
 </style>
 </head>
 <body>
@@ -423,92 +488,104 @@ button:disabled{cursor:wait;opacity:.6}
 </section>
 
 <section class="workspace-view" id="view-crops" data-view-panel="crops" hidden>
-<p style="color:var(--mut);margin:0 0 12px">Registre milho, soja, aveia e feijão. Cadastre despesas em <strong>Lançamentos</strong> e vincule-as à safra ou ao talhão para acompanhar custos sem duplicar o financeiro.</p>
-<div class="sum extra">
-  <div class="card"><small>Talhões</small><b id="cropPlotCount">0</b></div>
-  <div class="card"><small>Safras em andamento</small><b id="cropSeasonCount">0</b></div>
-  <div class="card"><small>Área plantada</small><b id="cropAreaTotal">0 ha</b></div>
-  <div class="card"><small>Estoque baixo</small><b id="cropLowStockCount">0</b></div>
+<div class="crop-hero">
+  <div class="crop-hero-copy">
+    <p class="crop-eyebrow">Gestão agrícola</p>
+    <h2>Da semeadura à colheita</h2>
+    <p>Organize talhões e safras, acompanhe as operações no campo e tenha uma visão clara de estoque, produtividade e custos. Culturas: milho, soja, aveia e feijão.</p>
+  </div>
+  <div class="crop-hero-mark" aria-hidden="true">🌾</div>
 </div>
-<div class="card">
-  <div class="top"><h2>Talhões</h2></div>
-  <div id="cropPlotForm">
-    <div class="row">
-      <input id="cropPlotName" maxlength="100" placeholder="Nome do talhão">
-      <input id="cropPlotArea" type="number" inputmode="decimal" min="0.01" step="0.01" placeholder="Área (ha)">
-      <input id="cropPlotNotes" maxlength="1000" placeholder="Observações (opcional)">
-    </div>
-    <button type="button" id="cropPlotAdd">Cadastrar talhão</button>
-  </div>
-  <div id="cropPlots" style="margin-top:8px"></div>
+<div class="crop-stats" aria-label="Resumo das lavouras">
+  <article class="crop-stat"><span class="crop-stat-icon" aria-hidden="true">🗺️</span><div><span class="crop-stat-label">Talhões cadastrados</span><strong id="cropPlotCount">0</strong></div></article>
+  <article class="crop-stat"><span class="crop-stat-icon" aria-hidden="true">🌱</span><div><span class="crop-stat-label">Safras ativas</span><strong id="cropSeasonCount">0</strong></div></article>
+  <article class="crop-stat"><span class="crop-stat-icon" aria-hidden="true">📐</span><div><span class="crop-stat-label">Área em produção</span><strong id="cropAreaTotal">0 ha</strong></div></article>
+  <article class="crop-stat"><span class="crop-stat-icon" aria-hidden="true">📦</span><div><span class="crop-stat-label">Itens com estoque baixo</span><strong id="cropLowStockCount">0</strong></div></article>
 </div>
-<div class="card">
-  <div class="top"><h2>Safras</h2></div>
-  <div id="cropSeasonForm">
-    <div class="row">
-      <select id="cropSeasonPlot" aria-label="Talhão da safra"><option value="">Selecione o talhão</option></select>
-      <select id="cropSeasonCulture" aria-label="Cultura">
-        <option value="milho">Milho</option><option value="soja">Soja</option><option value="aveia">Aveia</option><option value="feijao">Feijão</option>
-      </select>
-      <input id="cropSeasonName" maxlength="80" placeholder="Identificação da safra (ex.: 2026/27)">
-      <input id="cropSeasonVariety" maxlength="120" placeholder="Variedade (opcional)">
+<div class="crop-layout">
+  <section class="card crop-panel" aria-labelledby="cropPlotsTitle">
+    <div class="top"><h2 id="cropPlotsTitle">🗺️ Talhões</h2></div>
+    <p class="crop-panel-hint">Divida a propriedade em áreas para organizar safras, operações e despesas.</p>
+    <div id="cropPlotForm" class="crop-form">
+      <div class="row crop-row-three">
+        <input id="cropPlotName" maxlength="100" aria-label="Nome do talhão" placeholder="Nome do talhão">
+        <input id="cropPlotArea" type="number" inputmode="decimal" min="0.01" step="0.01" aria-label="Área do talhão em hectares" placeholder="Área (ha)">
+        <input id="cropPlotNotes" maxlength="1000" aria-label="Observações do talhão" placeholder="Observações (opcional)">
+      </div>
+      <button type="button" id="cropPlotAdd" class="crop-primary">＋ Cadastrar talhão</button>
     </div>
-    <div class="row">
-      <label class="photo-field">Plantio previsto/realizado<input id="cropSeasonPlanting" type="date"></label>
-      <label class="photo-field">Colheita prevista<input id="cropSeasonHarvest" type="date"></label>
+    <div id="cropPlots" class="crop-record-list"></div>
+  </section>
+  <section class="card crop-panel" aria-labelledby="cropSeasonsTitle">
+    <div class="top"><h2 id="cropSeasonsTitle">🌱 Safras</h2></div>
+    <p class="crop-panel-hint">Acompanhe cultura, área, calendário e resultado de cada ciclo.</p>
+    <div id="cropSeasonForm" class="crop-form">
+      <div class="row crop-row-three">
+        <select id="cropSeasonPlot" aria-label="Talhão da safra"><option value="">Selecione o talhão</option></select>
+        <select id="cropSeasonCulture" aria-label="Cultura">
+          <option value="milho">Milho</option><option value="soja">Soja</option><option value="aveia">Aveia</option><option value="feijao">Feijão</option>
+        </select>
+        <input id="cropSeasonName" maxlength="80" aria-label="Identificação da safra" placeholder="Safra (ex.: 2026/27)">
+      </div>
+      <div class="row">
+        <input id="cropSeasonVariety" maxlength="120" aria-label="Variedade da cultura" placeholder="Variedade (opcional)">
+        <label class="crop-field">Data do plantio<input id="cropSeasonPlanting" type="date"></label>
+        <label class="crop-field">Colheita prevista<input id="cropSeasonHarvest" type="date"></label>
+      </div>
+      <button type="button" id="cropSeasonAdd" class="crop-primary">＋ Cadastrar safra</button>
     </div>
-    <button type="button" id="cropSeasonAdd">Cadastrar safra</button>
-  </div>
-  <div id="cropSeasons" style="margin-top:8px"></div>
-</div>
-<div class="card">
-  <div class="top"><h2>Estoque de insumos</h2></div>
-  <div id="cropInputForm">
-    <div class="row">
-      <input id="cropInputName" maxlength="120" placeholder="Nome do insumo">
-      <input id="cropInputCategory" maxlength="80" placeholder="Categoria (sementes, adubo...)">
-      <input id="cropInputUnit" maxlength="30" placeholder="Unidade (kg, L, saco...)">
-      <input id="cropInputMinimum" type="number" inputmode="decimal" min="0" step="0.01" placeholder="Alerta de estoque mínimo">
+    <div id="cropSeasons" class="crop-record-list"></div>
+  </section>
+  <section class="card crop-panel" aria-labelledby="cropInputsTitle">
+    <div class="top"><h2 id="cropInputsTitle">📦 Estoque de insumos</h2></div>
+    <p class="crop-panel-hint">Cadastre sementes, fertilizantes e defensivos. As movimentações atualizam o saldo automaticamente.</p>
+    <div id="cropInputForm" class="crop-form">
+      <div class="row">
+        <input id="cropInputName" maxlength="120" aria-label="Nome do insumo" placeholder="Nome do insumo">
+        <input id="cropInputCategory" maxlength="80" aria-label="Categoria do insumo" placeholder="Categoria (sementes, adubo...)">
+        <input id="cropInputUnit" maxlength="30" aria-label="Unidade de estoque" placeholder="Unidade (kg, L, saco...)">
+        <input id="cropInputMinimum" type="number" inputmode="decimal" min="0" step="0.01" aria-label="Estoque mínimo para alerta" placeholder="Alerta de estoque mínimo">
+      </div>
+      <button type="button" id="cropInputAdd" class="crop-primary">＋ Cadastrar insumo</button>
     </div>
-    <button type="button" id="cropInputAdd">Cadastrar insumo</button>
-  </div>
-  <div id="cropInputs" style="margin-top:8px"></div>
-</div>
-<div class="card">
-  <div class="top"><h2>Diário de campo</h2></div>
-  <p style="color:var(--mut);margin:0 0 10px">Registre operações, chuva, colheita e movimentações de estoque por safra e talhão.</p>
-  <div id="cropActivityForm">
-    <div class="row">
-      <select id="cropActivitySeason" aria-label="Safra da operação"><option value="">Selecione a safra</option></select>
-      <select id="cropActivityType" aria-label="Tipo de operação">
-        <option value="plantio">Plantio</option><option value="adubacao">Adubação</option><option value="pulverizacao">Pulverização</option><option value="manejo">Manejo</option><option value="colheita">Colheita</option><option value="chuva">Chuva</option><option value="estoque_entrada">Entrada de estoque</option><option value="estoque_saida">Saída de estoque</option>
-      </select>
-      <input id="cropActivityDate" type="date" aria-label="Data da operação">
-      <input id="cropActivityArea" type="number" inputmode="decimal" min="0.01" step="0.01" placeholder="Área trabalhada (ha)">
+    <div id="cropInputs" class="crop-record-list"></div>
+  </section>
+  <section class="card crop-panel crop-panel-wide" aria-labelledby="cropDiaryTitle">
+    <div class="top"><h2 id="cropDiaryTitle">📋 Diário de campo</h2></div>
+    <p class="crop-panel-hint">Registre plantio, manejo, aplicações, chuva, colheita e movimentações de estoque, com data e área.</p>
+    <div id="cropActivityForm" class="crop-form">
+      <div class="row crop-row-three">
+        <select id="cropActivitySeason" aria-label="Safra da operação"><option value="">Selecione a safra</option></select>
+        <select id="cropActivityType" aria-label="Tipo de operação">
+          <option value="plantio">Plantio</option><option value="adubacao">Adubação</option><option value="pulverizacao">Pulverização</option><option value="manejo">Manejo</option><option value="colheita">Colheita</option><option value="chuva">Chuva</option><option value="estoque_entrada">Entrada de estoque</option><option value="estoque_saida">Saída de estoque</option>
+        </select>
+        <input id="cropActivityDate" type="date" aria-label="Data da operação">
+      </div>
+      <div class="row" id="cropStockFields" hidden>
+        <select id="cropActivityInput" aria-label="Insumo movimentado"><option value="">Selecione o insumo</option></select>
+        <input id="cropActivityQuantity" type="number" inputmode="decimal" min="0.01" step="0.01" aria-label="Quantidade movimentada" placeholder="Quantidade">
+      </div>
+      <div class="row" id="cropHarvestFields" hidden>
+        <input id="cropActivityProduction" type="number" inputmode="decimal" min="0.01" step="0.01" aria-label="Quantidade produzida" placeholder="Produção colhida">
+        <input id="cropActivityProductionUnit" maxlength="30" aria-label="Unidade da produção colhida" placeholder="Unidade (kg, sc...)">
+      </div>
+      <div class="row" id="cropRainFields" hidden>
+        <input id="cropActivityRain" type="number" inputmode="decimal" min="0" step="0.1" aria-label="Chuva em milímetros" placeholder="Chuva (mm)">
+      </div>
+      <div class="row">
+        <input id="cropActivityArea" type="number" inputmode="decimal" min="0.01" step="0.01" aria-label="Área trabalhada em hectares" placeholder="Área trabalhada (ha)">
+        <input id="cropActivityDescription" maxlength="500" aria-label="Descrição da operação" placeholder="Descrição ou serviço (opcional)">
+        <input id="cropActivityResponsible" maxlength="120" aria-label="Responsável pela operação" placeholder="Responsável (opcional)">
+        <input id="cropActivityNotes" maxlength="2000" aria-label="Observações da operação" placeholder="Observações (opcional)">
+      </div>
+      <button type="button" id="cropActivityAdd" class="crop-primary">＋ Registrar atividade</button>
     </div>
-    <div class="row" id="cropStockFields" hidden>
-      <select id="cropActivityInput" aria-label="Insumo movimentado"><option value="">Selecione o insumo</option></select>
-      <input id="cropActivityQuantity" type="number" inputmode="decimal" min="0.01" step="0.01" placeholder="Quantidade">
+    <div class="crop-toolbar">
+      <select id="cropActivityFilter" aria-label="Filtrar diário por safra"><option value="">Todas as safras</option></select>
+      <input id="cropActivitySearch" type="search" aria-label="Buscar no diário de campo" placeholder="Buscar operação, talhão, insumo ou responsável">
     </div>
-    <div class="row" id="cropHarvestFields" hidden>
-      <input id="cropActivityProduction" type="number" inputmode="decimal" min="0.01" step="0.01" placeholder="Produção colhida">
-      <input id="cropActivityProductionUnit" maxlength="30" placeholder="Unidade (kg, sc...)">
-    </div>
-    <div class="row" id="cropRainFields" hidden>
-      <input id="cropActivityRain" type="number" inputmode="decimal" min="0" step="0.1" placeholder="Chuva (mm)">
-    </div>
-    <div class="row">
-      <input id="cropActivityDescription" maxlength="500" placeholder="Descrição ou serviço (opcional)">
-      <input id="cropActivityResponsible" maxlength="120" placeholder="Responsável (opcional)">
-      <input id="cropActivityNotes" maxlength="2000" placeholder="Observações (opcional)">
-    </div>
-    <button type="button" id="cropActivityAdd">Registrar no diário</button>
-  </div>
-  <div class="toolbar">
-    <select id="cropActivityFilter" aria-label="Filtrar diário por safra"><option value="">Todas as safras</option></select>
-    <input id="cropActivitySearch" type="search" placeholder="Buscar no diário de campo">
-  </div>
-  <div id="cropActivities"></div>
+    <div id="cropActivities" class="crop-diary" aria-live="polite"></div>
+  </section>
 </div>
 </section>
 
@@ -813,7 +890,7 @@ function renderCropModule(){
   $('cropSeasonCount').textContent=String(seasons.filter(season=>season.status!=='encerrada').length);
   $('cropAreaTotal').textContent=seasons.filter(season=>season.status!=='encerrada').reduce((total,season)=>total+(cropById(season.talhaoId)?.areaHa||0),0).toLocaleString('pt-BR',{maximumFractionDigits:2})+' ha';
   $('cropLowStockCount').textContent=String(inputsList.filter(input=>cropStockBalance(input.id)<0||input.estoqueMinimo>0&&cropStockBalance(input.id)<=input.estoqueMinimo).length);
-  $('cropPlots').innerHTML=plots.length?plots.sort((a,b)=>a.nome.localeCompare(b.nome,'pt-BR')).map(plot=>`<div class="bill"><div class="d"><div>🌱 ${esc(plot.nome)}</div><small>${plot.areaHa.toLocaleString('pt-BR')} ha${plot.observacoes?' · '+esc(plot.observacoes):''} · Despesas vinculadas: ${brl(cropExpenseTotal('',plot.id))}</small></div>${canWrite?`<div class="item-actions"><button class="record-edit x" data-id="${esc(plot.id)}" title="Editar talhão" aria-label="Editar talhão">✎</button><button class="crop-delete x" data-id="${esc(plot.id)}" data-label="${esc(plot.nome)}" title="Excluir talhão">✕</button></div>`:''}</div>`).join(''):'<div class="empty">Cadastre os talhões da propriedade.</div>';
+  $('cropPlots').innerHTML=plots.length?plots.sort((a,b)=>a.nome.localeCompare(b.nome,'pt-BR')).map(plot=>`<article class="crop-record"><div class="crop-record-main"><div class="crop-record-title">${esc(plot.nome)} <span class="crop-badge">${plot.areaHa.toLocaleString('pt-BR')} ha</span></div><small class="crop-record-meta">${plot.observacoes?esc(plot.observacoes)+' · ':''}Despesas vinculadas: ${brl(cropExpenseTotal('',plot.id))}</small></div>${canWrite?`<div class="crop-record-actions"><button class="record-edit x" data-id="${esc(plot.id)}" title="Editar talhão" aria-label="Editar talhão">✎</button><button class="crop-delete x" data-id="${esc(plot.id)}" data-label="${esc(plot.nome)}" title="Excluir talhão" aria-label="Excluir talhão">✕</button></div>`:''}</article>`).join(''):'<div class="crop-empty">Nenhum talhão cadastrado. Crie o primeiro para iniciar o planejamento da lavoura.</div>';
   $('cropSeasons').innerHTML=seasons.length?seasons.sort((a,b)=>b.nome.localeCompare(a.nome,'pt-BR')).map(season=>{
     const plot=cropById(season.talhaoId);
     const harvests=activities.filter(activity=>activity.safraId===season.id&&activity.operacao==='colheita');
@@ -821,12 +898,14 @@ function renderCropModule(){
     const harvestedArea=harvests.reduce((sum,activity)=>sum+(activity.areaHa||0),0);
     const yieldText=harvestedArea?`${(produced/harvestedArea).toLocaleString('pt-BR',{maximumFractionDigits:2})} ${esc(harvests.find(activity=>activity.unidadeProducao)?.unidadeProducao||'unid.')}/ha`:'Sem colheita registrada';
     const costs=cropExpenseTotal(season.id);
-    return `<div class="bill"><div class="d"><div>🌾 ${esc(cropCultureLabels[season.cultura]||season.cultura)} · ${esc(season.nome)}</div><small>Talhão: ${esc(plot?.nome||'não encontrado')}${plot?` · ${plot.areaHa.toLocaleString('pt-BR')} ha`:''} · ${season.status==='encerrada'?'Encerrada':season.status==='planejada'?'Planejada':'Em andamento'}</small><small>${season.plantio?'Plantio: '+dd(season.plantio):''}${season.colheitaPrevista?' · Colheita prevista: '+dd(season.colheitaPrevista):''}${season.variedade?' · Variedade: '+esc(season.variedade):''}</small><small>${yieldText} · Despesas vinculadas: ${brl(costs)}</small></div>${canWrite?`<div class="item-actions"><button class="record-edit x" data-id="${esc(season.id)}" title="Editar safra" aria-label="Editar safra">✎</button><button class="crop-delete x" data-id="${esc(season.id)}" data-label="${esc(season.nome)}" title="Excluir safra">✕</button></div>`:''}</div>`;
-  }).join(''):'<div class="empty">Cadastre uma safra para começar a registrar operações.</div>';
+    const statusClass=season.status==='encerrada'?'is-closed':season.status==='planejada'?'is-planned':'';
+    const statusLabel=season.status==='encerrada'?'Encerrada':season.status==='planejada'?'Planejada':'Em andamento';
+    return `<article class="crop-record"><div class="crop-record-main"><div class="crop-record-title">${esc(cropCultureLabels[season.cultura]||season.cultura)} · ${esc(season.nome)} <span class="crop-badge ${statusClass}">${statusLabel}</span></div><small class="crop-record-meta">${plot?`Talhão ${esc(plot.nome)} · ${plot.areaHa.toLocaleString('pt-BR')} ha`:'Talhão não encontrado'}${season.variedade?' · '+esc(season.variedade):''}</small><small class="crop-record-meta">${season.plantio?'Plantio '+dd(season.plantio):'Plantio não informado'}${season.colheitaPrevista?' · Colheita prevista '+dd(season.colheitaPrevista):''}</small><small class="crop-record-meta">${yieldText} · Despesas vinculadas: ${brl(costs)}</small></div>${canWrite?`<div class="crop-record-actions"><button class="record-edit x" data-id="${esc(season.id)}" title="Editar safra" aria-label="Editar safra">✎</button><button class="crop-delete x" data-id="${esc(season.id)}" data-label="${esc(season.nome)}" title="Excluir safra" aria-label="Excluir safra">✕</button></div>`:''}</article>`;
+  }).join(''):'<div class="crop-empty">Nenhuma safra cadastrada. Escolha um talhão e registre a cultura deste ciclo.</div>';
   $('cropInputs').innerHTML=inputsList.length?inputsList.sort((a,b)=>a.nome.localeCompare(b.nome,'pt-BR')).map(input=>{
     const balance=cropStockBalance(input.id),low=balance<0||input.estoqueMinimo>0&&balance<=input.estoqueMinimo;
-    return `<div class="bill"><div class="d"><div>${esc(input.nome)}${input.categoria?' · '+esc(input.categoria):''}</div><small class="${low?'late':''}">Saldo: ${balance.toLocaleString('pt-BR',{maximumFractionDigits:2})} ${esc(input.unidade)}${input.estoqueMinimo>0?' · mínimo '+input.estoqueMinimo:''}${low?' · Estoque baixo':''}</small></div>${canWrite?`<div class="item-actions"><button class="record-edit x" data-id="${esc(input.id)}" title="Editar insumo" aria-label="Editar insumo">✎</button><button class="crop-delete x" data-id="${esc(input.id)}" data-label="${esc(input.nome)}" title="Excluir insumo">✕</button></div>`:''}</div>`;
-  }).join(''):'<div class="empty">Cadastre sementes, fertilizantes, defensivos ou outros insumos.</div>';
+    return `<article class="crop-record"><div class="crop-record-main"><div class="crop-record-title">${esc(input.nome)} <span class="crop-badge${low?' is-warning':''}">${balance.toLocaleString('pt-BR',{maximumFractionDigits:2})} ${esc(input.unidade)}</span></div><small class="crop-record-meta">${input.categoria?esc(input.categoria)+' · ':''}${input.estoqueMinimo>0?'Mínimo '+input.estoqueMinimo+' '+esc(input.unidade):'Sem mínimo configurado'}${low?' · Reposição necessária':''}</small></div>${canWrite?`<div class="crop-record-actions"><button class="record-edit x" data-id="${esc(input.id)}" title="Editar insumo" aria-label="Editar insumo">✎</button><button class="crop-delete x" data-id="${esc(input.id)}" data-label="${esc(input.nome)}" title="Excluir insumo" aria-label="Excluir insumo">✕</button></div>`:''}</article>`;
+  }).join(''):'<div class="crop-empty">Nenhum insumo cadastrado. Adicione sementes, fertilizantes ou defensivos para acompanhar o estoque.</div>';
   const filter=$('cropActivityFilter').value,query=$('cropActivitySearch').value.trim().toLocaleLowerCase();
   const visible=activities.filter(activity=>{
     const season=cropById(activity.safraId),plot=cropById(activity.talhaoId),input=cropById(activity.inputId);
@@ -838,14 +917,18 @@ function renderCropModule(){
     const details=activity.operacao==='chuva'?`${activity.chuvaMm} mm de chuva`
       :activity.operacao==='colheita'?`${activity.producao} ${esc(activity.unidadeProducao||'unid.')} em ${activity.areaHa} ha · ${(activity.producao/activity.areaHa).toLocaleString('pt-BR',{maximumFractionDigits:2})} ${esc(activity.unidadeProducao||'unid.')}/ha`
       :`${activity.areaHa?activity.areaHa+' ha · ':''}${esc(activity.descricao||'')}${stockText}`;
-    return `<div class="item"><div class="d"><div>${esc(cropOperationLabels[activity.operacao]||activity.operacao)}${plot?' · '+esc(plot.nome):''}</div><small>${dd(activity.data)} · ${esc(season?.nome||(activity.operacao==='estoque_entrada'?'Estoque geral':'Safra indisponível'))}${details?' · '+details:''}${activity.responsavel?' · '+esc(activity.responsavel):''}</small>${activity.observacoes?`<small>${esc(activity.observacoes)}</small>`:''}</div>${canWrite?`<div class="item-actions"><button class="record-edit x" data-id="${esc(activity.id)}" title="Editar atividade" aria-label="Editar atividade">✎</button><button class="crop-delete x" data-id="${esc(activity.id)}" data-label="${esc(cropOperationLabels[activity.operacao]||'Atividade')}" title="Excluir atividade">✕</button></div>`:''}</div>`;
-  }).join(''):'<div class="empty">Nenhuma atividade encontrada.</div>';
+    const [,month,day]=activity.data.split('-');
+    const [year]=activity.data.split('-');
+    return `<article class="crop-diary-entry"><time class="crop-diary-date" datetime="${esc(activity.data)}"><strong>${esc(day)}</strong><small>${esc(month)}/${esc(year)}</small></time><div class="crop-diary-content"><div class="crop-diary-title"><span class="crop-badge">${esc(cropOperationLabels[activity.operacao]||activity.operacao)}</span>${plot?esc(plot.nome):''}</div><small class="crop-diary-text">${esc(season?.nome||(activity.operacao==='estoque_entrada'?'Estoque geral':'Safra indisponível'))}${details?' · '+details:''}${activity.responsavel?' · '+esc(activity.responsavel):''}</small>${activity.observacoes?`<small class="crop-diary-text">${esc(activity.observacoes)}</small>`:''}</div>${canWrite?`<div class="crop-record-actions crop-diary-actions"><button class="record-edit x" data-id="${esc(activity.id)}" title="Editar atividade" aria-label="Editar atividade">✎</button><button class="crop-delete x" data-id="${esc(activity.id)}" data-label="${esc(cropOperationLabels[activity.operacao]||'Atividade')}" title="Excluir atividade" aria-label="Excluir atividade">✕</button></div>`:''}</article>`;
+  }).join(''):'<div class="crop-empty">Nenhuma operação neste período. Registre uma atividade para manter o histórico da safra.</div>';
 }
 function resetCropActivityFields(){
   const type=$('cropActivityType').value;
   $('cropStockFields').hidden=!['plantio','estoque_entrada','estoque_saida','adubacao','pulverizacao'].includes(type);
   $('cropHarvestFields').hidden=type!=='colheita';
   $('cropRainFields').hidden=type!=='chuva';
+  $('cropActivityArea').placeholder=type==='colheita'?'Área colhida (ha)':'Área trabalhada (ha)';
+  $('cropActivityArea').setAttribute('aria-label',type==='colheita'?'Área colhida em hectares':'Área trabalhada em hectares');
 }
 function cropNumber(id){const value=$(id).value;return value===''?undefined:Number(value)}
 function renderCropExpenseFields(){
