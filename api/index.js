@@ -1,5 +1,6 @@
 import { createHmac, timingSafeEqual, randomUUID } from 'node:crypto';
 import { validRecordId, validateRecordData, validateRestoreRecords } from '../shared/data.js';
+import { getWeatherForecast } from '../shared/weather.js';
 
 const collections = new Set(['config', 'lancamentos', 'contas', 'vacas', 'bezerros', 'lavouras']);
 const cookieName = 'cf_session';
@@ -266,6 +267,12 @@ function validCollection(value) {
   return typeof value === 'string' && collections.has(value);
 }
 
+function validCoordinate(value, minimum, maximum) {
+  if (typeof value !== 'string' || value.trim() === '') return null;
+  const coordinate = Number(value);
+  return Number.isFinite(coordinate) && coordinate >= minimum && coordinate <= maximum ? coordinate : null;
+}
+
 async function writeActivityLogs(username, events) {
   await supabaseRequest('/rpc/write_activity_logs', {
     method: 'POST',
@@ -289,7 +296,9 @@ export default async function handler(request, response) {
       activity: ['GET', 'POST'],
       restore: ['POST'],
       'pay-bill': ['POST'],
-      'calf-photos': ['GET', 'POST']
+      'calf-photos': ['GET', 'POST'],
+      'maps-config': ['GET'],
+      weather: ['GET']
     };
     if (allowedMethods[route] && !allowedMethods[route].includes(request.method)) {
       return send(response, 405, { error: 'Método não permitido.' }, { Allow: allowedMethods[route].join(', ') });
@@ -328,6 +337,29 @@ export default async function handler(request, response) {
 
     const session = getSession(request);
     if (!session) return send(response, 401, { error: 'Sua sessão expirou. Entre novamente.' });
+
+    if (route === 'maps-config') {
+      return send(response, 200, { apiKey: process.env.GOOGLE_MAPS_API_KEY || '' });
+    }
+
+    if (route === 'weather') {
+      const latitude = validCoordinate(params.get('latitude'), -90, 90);
+      const longitude = validCoordinate(params.get('longitude'), -180, 180);
+      if (latitude === null || longitude === null) {
+        return send(response, 400, { error: 'Informe coordenadas válidas para consultar a previsão.' });
+      }
+      const key = process.env.WEATHERAPI_KEY;
+      if (!key) {
+        return send(response, 503, { error: 'Configure WEATHERAPI_KEY no ambiente do servidor para ativar a previsão.' });
+      }
+      try {
+        const forecast = await getWeatherForecast(latitude, longitude, key);
+        return send(response, 200, forecast, { 'Cache-Control': 'private, max-age=600' });
+      } catch (error) {
+        if (Number.isInteger(error.statusCode)) return send(response, error.statusCode, { error: error.message });
+        throw error;
+      }
+    }
 
     if (route === 'activity') {
       if (request.method === 'POST') {

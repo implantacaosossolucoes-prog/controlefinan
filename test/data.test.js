@@ -142,6 +142,18 @@ test('crop records validate plots, seasons, field activities and linked finance 
     status: 'em_andamento'
   };
   assert.equal(validateRecordData('lavouras', 'plot-1', plot, today), null);
+  assert.equal(validateRecordData('lavouras', 'plot-located', {
+    ...plot, latitude: -29.123456, longitude: -53.987654
+  }, today), null);
+  assert.equal(validateRecordData('lavouras', 'plot-half-located', {
+    ...plot, latitude: -29.123456
+  }, today), 'invalid-crop-plot');
+  assert.equal(validateRecordData('lavouras', 'plot-bad-latitude', {
+    ...plot, latitude: -91, longitude: 0
+  }, today), 'invalid-crop-plot');
+  assert.equal(validateRecordData('lavouras', 'plot-bad-longitude', {
+    ...plot, latitude: 0, longitude: 181
+  }, today), 'invalid-crop-plot');
   assert.equal(validateRecordData('lavouras', 'season-1', season, today), null);
   assert.equal(validateRecordData('lavouras', 'input-1', {
     kind: 'insumo', nome: 'Semente', unidade: 'kg', estoqueMinimo: 50

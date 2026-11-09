@@ -7,7 +7,9 @@ const originalEnvironment = {
   APP_PASSWORD_GABRIEL: process.env.APP_PASSWORD_GABRIEL,
   APP_PASSWORD_ALIPIO: process.env.APP_PASSWORD_ALIPIO,
   SUPABASE_URL: process.env.SUPABASE_URL,
-  SUPABASE_SERVICE_ROLE_KEY: process.env.SUPABASE_SERVICE_ROLE_KEY
+  SUPABASE_SERVICE_ROLE_KEY: process.env.SUPABASE_SERVICE_ROLE_KEY,
+  GOOGLE_MAPS_API_KEY: process.env.GOOGLE_MAPS_API_KEY,
+  WEATHERAPI_KEY: process.env.WEATHERAPI_KEY
 };
 
 process.env.APP_SESSION_SECRET = 'test-only-session-secret-longer-than-32-bytes';
@@ -244,6 +246,75 @@ test('photo access is denied if the calf record no longer exists', async () => {
     );
     assert.equal(response.statusCode, 404);
     assert.equal(calls, 1);
+  } finally {
+    globalThis.fetch = previousFetch;
+  }
+});
+
+test('maps configuration is only available to authenticated sessions', async () => {
+  const anonymous = await request('GET', '/api/maps-config');
+  assert.equal(anonymous.statusCode, 401);
+
+  process.env.GOOGLE_MAPS_API_KEY = 'browser-key-restricted-by-referrer';
+  const response = await request('GET', '/api/maps-config', undefined, await loginCookie());
+  assert.equal(response.statusCode, 200);
+  assert.deepEqual(response.json(), { apiKey: 'browser-key-restricted-by-referrer' });
+});
+
+test('weather endpoint validates coordinates before contacting the provider', async () => {
+  const cookie = await loginCookie();
+  const previousFetch = globalThis.fetch;
+  let calls = 0;
+  globalThis.fetch = async () => {
+    calls += 1;
+    return new Response('{}', { status: 200 });
+  };
+  try {
+    const invalid = await request('GET', '/api/weather?latitude=91&longitude=10', undefined, cookie);
+    assert.equal(invalid.statusCode, 400);
+    assert.equal(calls, 0);
+
+    delete process.env.WEATHERAPI_KEY;
+    const missingKey = await request('GET', '/api/weather?latitude=10&longitude=20', undefined, cookie);
+    assert.equal(missingKey.statusCode, 503);
+    assert.equal(calls, 0);
+  } finally {
+    globalThis.fetch = previousFetch;
+  }
+});
+
+test('weather endpoint normalizes and caches provider forecasts without exposing the API key', async () => {
+  const cookie = await loginCookie();
+  const previousFetch = globalThis.fetch;
+  process.env.WEATHERAPI_KEY = 'server-only-weather-key';
+  const calls = [];
+  globalThis.fetch = async url => {
+    calls.push(String(url));
+    return new Response(JSON.stringify({
+      location: { name: 'Fazenda' },
+      current: { temp_c: 22.4, condition: { text: 'Parcialmente nublado' } },
+      forecast: {
+        forecastday: [{
+          date: '2026-11-09',
+          day: { mintemp_c: 15, maxtemp_c: 25, daily_chance_of_rain: 60, totalprecip_mm: 3.2 }
+        }]
+      }
+    }), { status: 200, headers: { 'Content-Type': 'application/json' } });
+  };
+  try {
+    const url = '/api/weather?latitude=-29.12345&longitude=-53.98765';
+    const first = await request('GET', url, undefined, cookie);
+    const second = await request('GET', url, undefined, cookie);
+    assert.equal(first.statusCode, 200);
+    assert.deepEqual(first.json(), {
+      location: 'Fazenda',
+      current: { temperatureC: 22.4, condition: 'Parcialmente nublado' },
+      days: [{ date: '2026-11-09', minC: 15, maxC: 25, rainChance: 60, precipitationMm: 3.2 }]
+    });
+    assert.deepEqual(second.json(), first.json());
+    assert.equal(calls.length, 1);
+    assert.match(calls[0], /key=server-only-weather-key/);
+    assert.equal(JSON.stringify(first.json()).includes('server-only-weather-key'), false);
   } finally {
     globalThis.fetch = previousFetch;
   }

@@ -70,7 +70,10 @@ export function validateRecordData(collection, id, data, today = new Date()) {
     if (!cropKinds.includes(data.kind)) return 'invalid-crop-record';
     if (data.kind === 'talhao') {
       if (!validText(data.nome, true, 100) || !validAmount(data.areaHa, true)
-        || !validText(data.observacoes, false, 1000)) return 'invalid-crop-plot';
+        || !validText(data.observacoes, false, 1000)
+        || (data.latitude !== undefined && (!Number.isFinite(data.latitude) || data.latitude < -90 || data.latitude > 90))
+        || (data.longitude !== undefined && (!Number.isFinite(data.longitude) || data.longitude < -180 || data.longitude > 180))
+        || ((data.latitude === undefined) !== (data.longitude === undefined))) return 'invalid-crop-plot';
     } else if (data.kind === 'safra') {
       if (!cropTypes.includes(data.cultura) || !validText(data.nome, true, 80)
         || !validRecordId(data.talhaoId) || !validText(data.variedade, false, 120)

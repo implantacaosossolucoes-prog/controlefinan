@@ -283,6 +283,26 @@ button:disabled{cursor:wait;opacity:.6}
 .crop-record-actions{display:flex;flex:none;align-items:center;gap:2px}
 .crop-record-actions button{width:36px;height:36px;padding:0;border:1px solid transparent;border-radius:9px}
 .crop-record-actions button:hover{border-color:var(--bd);background:var(--bg)}
+.crop-location{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:7px;margin-top:10px}
+.crop-location input{width:100%;min-height:40px;background:var(--card)}
+.crop-map-button{width:100%;margin-top:8px}
+.crop-weather{margin-top:10px;padding:10px;border:1px solid var(--bd);border-radius:10px;background:color-mix(in srgb,var(--crop-soft) 55%,var(--card))}
+.crop-weather-head{display:flex;align-items:center;justify-content:space-between;gap:8px}
+.crop-weather-head strong{font-size:12px}
+.crop-weather-head small,.crop-weather-message{color:var(--mut);font-size:11px}
+.crop-weather-refresh{padding:4px 7px;font-size:11px}
+.crop-weather-current{margin:6px 0;font-size:13px;font-weight:650}
+.crop-weather-days{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px}
+.crop-weather-day{padding:7px;border:1px solid var(--bd);border-radius:8px;background:var(--card);font-size:11px}
+.crop-weather-day strong,.crop-weather-day span{display:block}
+.crop-weather-day span{margin-top:3px;color:var(--mut)}
+#cropMapDialog{width:min(900px,calc(100% - 24px));max-width:none;max-height:calc(100dvh - 24px);padding:16px;border:1px solid var(--bd);border-radius:14px;background:var(--card);color:var(--tx)}
+#cropMapDialog::backdrop{background:#0008}
+#cropMapDialog h2{margin:0;font-size:18px}
+#cropMap{width:100%;height:min(58dvh,520px);min-height:280px;margin:12px 0;border:1px solid var(--bd);border-radius:10px}
+.crop-map-actions{display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap}
+.crop-map-actions p{flex:1 1 240px;margin:0;color:var(--mut);font-size:12px}
+.crop-map-buttons{display:flex;gap:8px}
 .crop-toolbar{display:grid;grid-template-columns:minmax(180px,1fr) minmax(220px,2fr);gap:8px;margin:14px 0 10px}
 .crop-toolbar input,.crop-toolbar select{width:100%;min-height:42px;background:var(--card)}
 .crop-diary{display:grid;gap:8px}
@@ -304,6 +324,7 @@ button:disabled{cursor:wait;opacity:.6}
 @media(max-width:850px){.crop-stats{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media(max-width:680px){.crop-layout{grid-template-columns:minmax(0,1fr)}.crop-panel-wide{grid-column:auto}.crop-hero{padding:18px}.crop-hero-mark{width:58px;height:58px;border-radius:18px;font-size:30px}}
 @media(max-width:520px){.crop-stats{gap:7px}.crop-stat{gap:9px;padding:11px}.crop-stat-icon{width:34px;height:34px;border-radius:10px;font-size:17px}.crop-stat strong{font-size:17px}.crop-hero h2{font-size:21px}.crop-form{padding:11px}.crop-form .row,.crop-form .crop-row-three{grid-template-columns:minmax(0,1fr)}.crop-toolbar{grid-template-columns:minmax(0,1fr)}.crop-diary-entry{grid-template-columns:46px minmax(0,1fr);gap:9px;padding:10px}.crop-diary-date{min-height:48px}.crop-diary-actions{grid-column:2;justify-self:end;margin-top:-5px}}
+@media(max-width:520px){.crop-weather-days{grid-template-columns:minmax(0,1fr)}.crop-map-actions,.crop-map-buttons{width:100%}.crop-map-buttons button{flex:1}}
 @media(prefers-reduced-motion:reduce){.crop-primary,.crop-record{transition:none}}
 @media(prefers-color-scheme:dark){:root:not([data-theme="light"]) .crop-hero{border-color:#24583a;background:linear-gradient(115deg,#14251b 0%,var(--card) 80%);color:#dcfce7}:root:not([data-theme="light"]) .crop-hero p{color:#a7b9aa}:root:not([data-theme="light"]) .crop-stat-icon,:root:not([data-theme="light"]) .crop-badge{background:#173324;color:#86efac}:root:not([data-theme="light"]) .crop-badge.is-planned{border-color:#1e3a8a;background:#172554;color:#93c5fd}:root:not([data-theme="light"]) .crop-badge.is-closed{border-color:var(--bd);background:var(--bg);color:var(--mut)}:root:not([data-theme="light"]) .crop-badge.is-warning{border-color:#7f1d1d;background:#450a0a;color:#fca5a5}:root:not([data-theme="light"]) .crop-diary-date{background:#173324;color:#86efac}}
 </style>
@@ -512,6 +533,11 @@ button:disabled{cursor:wait;opacity:.6}
         <input id="cropPlotArea" type="number" inputmode="decimal" min="0.01" step="0.01" aria-label="Área do talhão em hectares" placeholder="Área (ha)">
         <input id="cropPlotNotes" maxlength="1000" aria-label="Observações do talhão" placeholder="Observações (opcional)">
       </div>
+      <div class="crop-location">
+        <input id="cropPlotLatitude" type="number" aria-label="Latitude do talhão" placeholder="Latitude" readonly>
+        <input id="cropPlotLongitude" type="number" aria-label="Longitude do talhão" placeholder="Longitude" readonly>
+      </div>
+      <button type="button" id="cropMapPick" class="secondary-button crop-map-button">📍 Marcar localização no Google Maps</button>
       <button type="button" id="cropPlotAdd" class="crop-primary">＋ Cadastrar talhão</button>
     </div>
     <div id="cropPlots" class="crop-record-list"></div>
@@ -676,6 +702,7 @@ button:disabled{cursor:wait;opacity:.6}
 <input id="photoReplaceInput" type="file" accept="image/*" capture="environment" hidden>
 <dialog id="cowCalvingDialog" aria-labelledby="cowCalvingTitle"><form id="cowCalvingForm"><h2 id="cowCalvingTitle">Registrar parto</h2><p id="cowCalvingCow"></p><label for="calfObservations">Observações do bezerro (opcional)</label><textarea id="calfObservations" maxlength="2000" placeholder="Ex.: sexo, cor, peso, número do brinco ou cuidados"></textarea><div class="cow-calving-actions"><button type="button" id="cowCalvingCancel" class="secondary-button">Cancelar</button><button type="submit" id="cowCalvingSave">Salvar parto</button></div></form></dialog>
 <dialog id="calfPhotoViewer" aria-label="Visualização da foto"><button id="calfPhotoClose" type="button" aria-label="Fechar foto">×</button><figure><img id="calfPhotoViewerImage" alt=""></figure></dialog>
+<dialog id="cropMapDialog" aria-labelledby="cropMapTitle"><h2 id="cropMapTitle">Localização do talhão</h2><div id="cropMap" role="application" aria-label="Mapa para marcar a localização do talhão"></div><div class="crop-map-actions"><p id="cropMapStatus" role="status">Clique no mapa para selecionar o ponto central do talhão.</p><div class="crop-map-buttons"><button type="button" id="cropMapGeolocate" class="secondary-button">Minha localização</button><button type="button" id="cropMapCancel" class="secondary-button">Cancelar</button><button type="button" id="cropMapConfirm" class="crop-primary" disabled>Usar localização</button></div></div></dialog>
 <div id="login"><div class="box">
   <img class="brand-logo" src="/logo.png" alt="Logo AgroBack">
   <h2>Controle Financeiro</h2>
@@ -791,7 +818,10 @@ function validateRecord(collection,data,id=''){
     if(calves.some(c=>c.id!==id&&(c.brinco||'').trim().toLocaleLowerCase()===tag))return 'Já existe um bezerro cadastrado com esse número de brinco.';
   }
   if(collection==='lavouras'){
-    if(data.kind==='talhao'&&(!data.nome.trim()||!(Number.isFinite(data.areaHa)&&data.areaHa>0)))return 'Informe o nome e uma área válida para o talhão.';
+    if(data.kind==='talhao'&&(!data.nome.trim()||!(Number.isFinite(data.areaHa)&&data.areaHa>0)
+      ||(data.latitude!==undefined&&(!Number.isFinite(data.latitude)||data.latitude < -90||data.latitude>90))
+      ||(data.longitude!==undefined&&(!Number.isFinite(data.longitude)||data.longitude < -180||data.longitude>180))
+      ||((data.latitude===undefined)!==(data.longitude===undefined))))return 'Informe o nome e uma área válida; a latitude e longitude devem ser preenchidas juntas e estar dentro dos limites válidos.';
     if(data.kind==='safra'&&(!data.nome.trim()||!data.talhaoId||!['milho','soja','aveia','feijao'].includes(data.cultura)))return 'Informe a cultura, identificação e talhão da safra.';
     if(data.kind==='insumo'&&(!data.nome.trim()||!data.unidade.trim()))return 'Informe o nome e a unidade do insumo.';
     if(data.kind==='atividade'){
@@ -854,6 +884,7 @@ const cropCultureLabels={milho:'Milho',soja:'Soja',aveia:'Aveia',feijao:'Feijão
 const cropOperationLabels={plantio:'Plantio',adubacao:'Adubação',pulverizacao:'Pulverização',manejo:'Manejo',colheita:'Colheita',chuva:'Chuva',estoque_entrada:'Entrada de estoque',estoque_saida:'Saída de estoque'};
 const cropRecords=kind=>crops.filter(record=>record.kind===kind);
 const cropById=id=>crops.find(record=>record.id===id);
+const cropWeatherCache=new Map(),cropWeatherPending=new Map();
 function cropStockBalance(inputId){
   return cropRecords('atividade').reduce((total,activity)=>{
     if(activity.inputId!==inputId||!Number.isFinite(activity.quantidade))return total;
@@ -866,6 +897,46 @@ function setOptions(select,placeholder,records,label,selected=''){
 function cropExpenseTotal(seasonId,plotId=''){
   return items.filter(item=>item.type==='out'&&(seasonId&&item.cropSeasonId===seasonId||!seasonId&&plotId&&item.cropPlotId===plotId))
     .reduce((total,item)=>total+(Number.isFinite(item.value)?item.value:0),0);
+}
+function renderCropWeather(plot,container){
+  if(!Number.isFinite(plot.latitude)||!Number.isFinite(plot.longitude)){
+    container.innerHTML='<span class="crop-weather-message">Marque a localização no mapa para ativar a previsão automática.</span>';
+    return;
+  }
+  const cacheKey=`${plot.latitude.toFixed(5)},${plot.longitude.toFixed(5)}`;
+  const cached=cropWeatherCache.get(cacheKey);
+  if(cached&&cached.expiresAt>Date.now()){
+    container.innerHTML=cached.html;
+    return;
+  }
+  container.innerHTML='<span class="crop-weather-message">Carregando previsão do tempo...</span>';
+  if(cropWeatherPending.has(cacheKey))return;
+  const query=new URLSearchParams({latitude:String(plot.latitude),longitude:String(plot.longitude)});
+  const request=apiRequest(`/api/weather?${query}`).then(forecast=>{
+    const updated=Date.now();
+    const timestamp=new Date(updated).toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'});
+    const days=forecast.days.map(day=>{
+      const date=new Date(`${day.date}T12:00:00`).toLocaleDateString('pt-BR',{weekday:'short',day:'2-digit',month:'2-digit'});
+      const temperatures=Number.isFinite(day.minC)&&Number.isFinite(day.maxC)
+        ?`${day.minC.toLocaleString('pt-BR',{maximumFractionDigits:0})}°–${day.maxC.toLocaleString('pt-BR',{maximumFractionDigits:0})}°`
+        :'Sem dados';
+      const rain=Number.isFinite(day.rainChance)?`${day.rainChance}% chance de chuva`:'Chance indisponível';
+      const amount=Number.isFinite(day.precipitationMm)?` · ${day.precipitationMm.toLocaleString('pt-BR',{maximumFractionDigits:1})} mm`:'';
+      return `<div class="crop-weather-day"><strong>${esc(date)}</strong><span>${esc(temperatures)}</span><span>${esc(rain+amount)}</span></div>`;
+    }).join('');
+    const html=`<div class="crop-weather-head"><strong>Previsão · ${esc(forecast.location||plot.nome)}</strong><small>Atualizada às ${timestamp}</small><button type="button" class="secondary-button crop-weather-refresh" data-weather-refresh="${esc(plot.id)}" aria-label="Atualizar previsão de ${esc(plot.nome)}">Atualizar</button></div><div class="crop-weather-current">${Number.isFinite(forecast.current?.temperatureC)?`${forecast.current.temperatureC.toLocaleString('pt-BR',{maximumFractionDigits:0})}°C agora`:''}${forecast.current?.condition?` · ${esc(forecast.current.condition)}`:''}</div><div class="crop-weather-days">${days}</div><small class="crop-weather-message">Fonte: WeatherAPI · previsão sujeita a alterações.</small>`;
+    cropWeatherCache.set(cacheKey,{html,expiresAt:updated+15*60*1000});
+    if(cropById(plot.id)?.latitude===plot.latitude&&cropById(plot.id)?.longitude===plot.longitude){
+      const target=document.getElementById(`cropWeather-${plot.id}`);
+      if(target)target.innerHTML=html;
+    }
+  }).catch(error=>{
+    const html=`<span class="crop-weather-message">${esc(error.message)}</span>`;
+    cropWeatherCache.set(cacheKey,{html,expiresAt:Date.now()+60*1000});
+    const target=document.getElementById(`cropWeather-${plot.id}`);
+    if(target)target.innerHTML=html;
+  }).finally(()=>cropWeatherPending.delete(cacheKey));
+  cropWeatherPending.set(cacheKey,request);
 }
 function renderCropSelects(){
   const plots=cropRecords('talhao').sort((a,b)=>a.nome.localeCompare(b.nome,'pt-BR'));
@@ -890,7 +961,11 @@ function renderCropModule(){
   $('cropSeasonCount').textContent=String(seasons.filter(season=>season.status!=='encerrada').length);
   $('cropAreaTotal').textContent=seasons.filter(season=>season.status!=='encerrada').reduce((total,season)=>total+(cropById(season.talhaoId)?.areaHa||0),0).toLocaleString('pt-BR',{maximumFractionDigits:2})+' ha';
   $('cropLowStockCount').textContent=String(inputsList.filter(input=>cropStockBalance(input.id)<0||input.estoqueMinimo>0&&cropStockBalance(input.id)<=input.estoqueMinimo).length);
-  $('cropPlots').innerHTML=plots.length?plots.sort((a,b)=>a.nome.localeCompare(b.nome,'pt-BR')).map(plot=>`<article class="crop-record"><div class="crop-record-main"><div class="crop-record-title">${esc(plot.nome)} <span class="crop-badge">${plot.areaHa.toLocaleString('pt-BR')} ha</span></div><small class="crop-record-meta">${plot.observacoes?esc(plot.observacoes)+' · ':''}Despesas vinculadas: ${brl(cropExpenseTotal('',plot.id))}</small></div>${canWrite?`<div class="crop-record-actions"><button class="record-edit x" data-id="${esc(plot.id)}" title="Editar talhão" aria-label="Editar talhão">✎</button><button class="crop-delete x" data-id="${esc(plot.id)}" data-label="${esc(plot.nome)}" title="Excluir talhão" aria-label="Excluir talhão">✕</button></div>`:''}</article>`).join(''):'<div class="crop-empty">Nenhum talhão cadastrado. Crie o primeiro para iniciar o planejamento da lavoura.</div>';
+  $('cropPlots').innerHTML=plots.length?plots.sort((a,b)=>a.nome.localeCompare(b.nome,'pt-BR')).map(plot=>`<article class="crop-record"><div class="crop-record-main"><div class="crop-record-title">${esc(plot.nome)} <span class="crop-badge">${plot.areaHa.toLocaleString('pt-BR')} ha</span></div><small class="crop-record-meta">${plot.observacoes?esc(plot.observacoes)+' · ':''}${Number.isFinite(plot.latitude)&&Number.isFinite(plot.longitude)?`Localização: ${plot.latitude.toFixed(5)}, ${plot.longitude.toFixed(5)} · `:''}Despesas vinculadas: ${brl(cropExpenseTotal('',plot.id))}</small><div class="crop-weather" id="cropWeather-${esc(plot.id)}"><span class="crop-weather-message">${Number.isFinite(plot.latitude)&&Number.isFinite(plot.longitude)?'Carregando previsão do tempo...':'Marque a localização no mapa para ativar a previsão automática.'}</span></div></div>${canWrite?`<div class="crop-record-actions"><button class="record-edit x" data-id="${esc(plot.id)}" title="Editar talhão" aria-label="Editar talhão">✎</button><button class="crop-delete x" data-id="${esc(plot.id)}" data-label="${esc(plot.nome)}" title="Excluir talhão" aria-label="Excluir talhão">✕</button></div>`:''}</article>`).join(''):'<div class="crop-empty">Nenhum talhão cadastrado. Crie o primeiro para iniciar o planejamento da lavoura.</div>';
+  for(const plot of plots){
+    const weatherContainer=document.getElementById(`cropWeather-${plot.id}`);
+    if(weatherContainer)renderCropWeather(plot,weatherContainer);
+  }
   $('cropSeasons').innerHTML=seasons.length?seasons.sort((a,b)=>b.nome.localeCompare(a.nome,'pt-BR')).map(season=>{
     const plot=cropById(season.talhaoId);
     const harvests=activities.filter(activity=>activity.safraId===season.id&&activity.operacao==='colheita');
@@ -931,20 +1006,123 @@ function resetCropActivityFields(){
   $('cropActivityArea').setAttribute('aria-label',type==='colheita'?'Área colhida em hectares':'Área trabalhada em hectares');
 }
 function cropNumber(id){const value=$(id).value;return value===''?undefined:Number(value)}
+let googleMapsPromise=null,cropMapInstance=null,cropMapMarker=null,cropMapCoordinates=null;
+function loadGoogleMaps(){
+  if(window.google?.maps)return Promise.resolve(window.google.maps);
+  if(googleMapsPromise)return googleMapsPromise;
+  googleMapsPromise=(async()=>{
+    const config=await apiRequest('/api/maps-config');
+    if(!config.apiKey)throw new Error('Configure GOOGLE_MAPS_API_KEY para habilitar o mapa.');
+    return new Promise((resolve,reject)=>{
+      const callbackName='cropGoogleMapsReady';
+      window[callbackName]=()=>{
+        delete window[callbackName];
+        resolve(window.google.maps);
+      };
+      const script=document.createElement('script');
+      script.async=true;
+      script.src=`https://maps.googleapis.com/maps/api/js?key=${encodeURIComponent(config.apiKey)}&callback=${callbackName}&loading=async`;
+      script.onerror=()=>{
+        delete window[callbackName];
+        reject(new Error('Não foi possível carregar o Google Maps. Confira a chave e as restrições de domínio.'));
+      };
+      document.head.append(script);
+    });
+  })().catch(error=>{
+    googleMapsPromise=null;
+    throw error;
+  });
+  return googleMapsPromise;
+}
+async function openCropMap(){
+  $('cropMapDialog').showModal();
+  $('cropMapStatus').textContent='Carregando Google Maps...';
+  $('cropMapConfirm').disabled=true;
+  try{
+    const maps=await loadGoogleMaps();
+    const latitude=cropNumber('cropPlotLatitude'),longitude=cropNumber('cropPlotLongitude');
+    const hasCurrent=Number.isFinite(latitude)&&Number.isFinite(longitude);
+    const center=hasCurrent?{lat:latitude,lng:longitude}:{lat:-14.235,lng:-51.925};
+    cropMapCoordinates=hasCurrent?center:null;
+    if(!cropMapInstance){
+      cropMapInstance=new maps.Map($('cropMap'),{center,zoom:hasCurrent?15:4,mapTypeId:'hybrid',streetViewControl:false,mapTypeControl:true,fullscreenControl:true});
+      cropMapMarker=new maps.Marker({map:cropMapInstance,draggable:true});
+      cropMapInstance.addListener('click',event=>setCropMapCoordinates(event.latLng));
+      cropMapMarker.addListener('dragend',event=>setCropMapCoordinates(event.latLng));
+    }else{
+      cropMapInstance.setCenter(center);
+      cropMapInstance.setZoom(hasCurrent?15:4);
+    }
+    if(hasCurrent){
+      cropMapMarker.setPosition(center);
+      cropMapMarker.setMap(cropMapInstance);
+      $('cropMapConfirm').disabled=false;
+      $('cropMapStatus').textContent=`Ponto atual: ${latitude.toFixed(5)}, ${longitude.toFixed(5)}. Clique no mapa para alterá-lo.`;
+    }else{
+      cropMapMarker.setMap(null);
+      $('cropMapStatus').textContent='Clique no mapa para selecionar o ponto central do talhão.';
+    }
+    requestAnimationFrame(()=>maps.event.trigger(cropMapInstance,'resize'));
+  }catch(error){
+    $('cropMapStatus').textContent=error.message;
+  }
+}
+function setCropMapCoordinates(location){
+  cropMapCoordinates={lat:location.lat(),lng:location.lng()};
+  cropMapMarker.setPosition(cropMapCoordinates);
+  cropMapMarker.setMap(cropMapInstance);
+  $('cropMapConfirm').disabled=false;
+  $('cropMapStatus').textContent=`Ponto selecionado: ${cropMapCoordinates.lat.toFixed(5)}, ${cropMapCoordinates.lng.toFixed(5)}.`;
+}
+$('cropMapPick').onclick=()=>void openCropMap();
+$('cropMapCancel').onclick=()=>$('cropMapDialog').close();
+$('cropMapConfirm').onclick=()=>{
+  if(!cropMapCoordinates)return;
+  $('cropPlotLatitude').value=cropMapCoordinates.lat.toFixed(6);
+  $('cropPlotLongitude').value=cropMapCoordinates.lng.toFixed(6);
+  $('cropMapDialog').close();
+};
+$('cropMapGeolocate').onclick=()=>{
+  if(!navigator.geolocation){$('cropMapStatus').textContent='A localização não está disponível neste dispositivo.';return}
+  if(!cropMapInstance){$('cropMapStatus').textContent='Aguarde o carregamento do mapa antes de usar sua localização.';return}
+  $('cropMapStatus').textContent='Obtendo sua localização...';
+  navigator.geolocation.getCurrentPosition(position=>{
+    const point={lat:position.coords.latitude,lng:position.coords.longitude};
+    cropMapInstance.setCenter(point);
+    cropMapInstance.setZoom(16);
+    cropMapCoordinates=point;
+    cropMapMarker.setPosition(point);
+    cropMapMarker.setMap(cropMapInstance);
+    $('cropMapConfirm').disabled=false;
+    $('cropMapStatus').textContent=`Ponto selecionado: ${point.lat.toFixed(5)}, ${point.lng.toFixed(5)}.`;
+  },()=>{
+    $('cropMapStatus').textContent='Não foi possível obter sua localização. Verifique a permissão do navegador.';
+  },{enableHighAccuracy:true,timeout:10000});
+};
 function renderCropExpenseFields(){
   $('cropExpenseFields').hidden=type!=='out';
   renderCropSelects();
 }
 $('cropPlotAdd').onclick=async()=>{
-  const data={kind:'talhao',nome:$('cropPlotName').value.trim(),areaHa:cropNumber('cropPlotArea'),observacoes:$('cropPlotNotes').value.trim()||undefined,ts:Date.now()};
+  const data={kind:'talhao',nome:$('cropPlotName').value.trim(),areaHa:cropNumber('cropPlotArea'),latitude:cropNumber('cropPlotLatitude'),longitude:cropNumber('cropPlotLongitude'),observacoes:$('cropPlotNotes').value.trim()||undefined,ts:Date.now()};
   const validation=validateRecord('lavouras',data);
   if(validation){note(validation);return}
   try{
     await db.collection('lavouras').add(data);
-    $('cropPlotName').value='';$('cropPlotArea').value='';$('cropPlotNotes').value='';
+    $('cropPlotName').value='';$('cropPlotArea').value='';$('cropPlotNotes').value='';$('cropPlotLatitude').value='';$('cropPlotLongitude').value='';
     note('');toast('✅ Talhão cadastrado.','#15803d');
   }catch(error){note('Não foi possível cadastrar o talhão: '+error.message)}
 };
+$('cropPlots').addEventListener('click',event=>{
+  const button=event.target.closest('[data-weather-refresh]');
+  if(!button)return;
+  const plot=cropById(button.dataset.weatherRefresh);
+  if(!plot)return;
+  const key=`${plot.latitude.toFixed(5)},${plot.longitude.toFixed(5)}`;
+  cropWeatherCache.delete(key);
+  const container=document.getElementById(`cropWeather-${plot.id}`);
+  if(container)renderCropWeather(plot,container);
+});
 $('cropSeasonAdd').onclick=async()=>{
   const plantio=$('cropSeasonPlanting').value,colheitaPrevista=$('cropSeasonHarvest').value;
   const data={kind:'safra',talhaoId:$('cropSeasonPlot').value,cultura:$('cropSeasonCulture').value,nome:$('cropSeasonName').value.trim(),variedade:$('cropSeasonVariety').value.trim()||undefined,plantio:plantio||undefined,colheitaPrevista:colheitaPrevista||undefined,status:plantio&&notFuture(plantio)?'em_andamento':'planejada',ts:Date.now()};
@@ -1386,7 +1564,7 @@ const editorFields={
 };
 const editorTitles={lancamentos:'Editar lançamento',contas:'Editar conta',vacas:'Editar vaca',bezerros:'Editar bezerro'};
 function cropEditorFields(record){
-  if(record.kind==='talhao')return [['nome','Nome do talhão','text'],['areaHa','Área (ha)','number'],['observacoes','Observações','text','',false]];
+  if(record.kind==='talhao')return [['nome','Nome do talhão','text'],['areaHa','Área (ha)','number'],['latitude','Latitude','cropLatitude','',false],['longitude','Longitude','cropLongitude','',false],['observacoes','Observações','text','',false]];
   if(record.kind==='safra')return [['cultura','Cultura','cropCulture'],['nome','Identificação da safra','text'],['talhaoId','Talhão','cropPlot'],['variedade','Variedade','text','',false],['plantio','Data do plantio','date','',false],['colheitaPrevista','Colheita prevista','date','',false],['status','Situação','cropStatus']];
   if(record.kind==='insumo')return [['nome','Nome do insumo','text'],['categoria','Categoria','text','',false],['unidade','Unidade','text'],['estoqueMinimo','Estoque mínimo','cropMinimum','',false]];
   return [['operacao','Operação','cropOperation'],['safraId','Safra (opcional para entrada de estoque)','cropSeason','',false],['data','Data','date'],['areaHa','Área trabalhada (ha)','cropMinimum','',false],['inputId','Insumo','cropInput','',false],['quantidade','Quantidade de insumo','cropMinimum','',false],['producao','Produção colhida','cropMinimum','',false],['unidadeProducao','Unidade da produção','text','',false],['chuvaMm','Chuva (mm)','cropRain','',false],['descricao','Descrição','text','',false],['responsavel','Responsável','text','',false],['observacoes','Observações','text','',false]];
@@ -1407,9 +1585,11 @@ function openEditor(collection,record){
       :inputType==='cropInput'?cropRecords('insumo').map(item=>[item.id,`${item.nome} (${item.unidade})`])
       :null;
     if(choices)return `<label class="edit-field">${label}<select name="${name}"${required?' required':''}>${inputType==='cropSeason'||inputType==='cropInput'?`<option value=""${value?'':' selected'}>Não informado</option>`:''}${choices.map(([key,text])=>`<option value="${esc(key)}"${value===key?' selected':''}>${esc(text)}</option>`).join('')}</select></label>`;
-    const isNumber=['number','cropMinimum','cropRain'].includes(inputType),inputTypeName=isNumber?'number':inputType;
-    const minimum=inputType==='cropRain'||inputType==='cropMinimum'?'0':'0.01';
-    const numberAttrs=isNumber?` inputmode="decimal" min="${minimum}" step="0.01"`:'';
+    const isNumber=['number','cropMinimum','cropRain','cropLatitude','cropLongitude'].includes(inputType),inputTypeName=isNumber?'number':inputType;
+    const minimum=inputType==='cropRain'||inputType==='cropMinimum'?'0':inputType==='cropLatitude'?'-90':inputType==='cropLongitude'?'-180':'0.01';
+    const maximum=inputType==='cropLatitude'?' max="90"':inputType==='cropLongitude'?' max="180"':'';
+    const step=inputType==='cropLatitude'||inputType==='cropLongitude'?'0.000001':'0.01';
+    const numberAttrs=isNumber?` inputmode="decimal" min="${minimum}"${maximum} step="${step}"`:'';
     const inputMode=keyboardMode==='numeric'?' inputmode="numeric"':'';
     return `<label class="edit-field">${label}<input name="${name}" type="${inputTypeName}" value="${esc(value)}"${numberAttrs}${inputMode}${required?' required':''}></label>`;
   }).join('');
@@ -1434,11 +1614,11 @@ $('editorForm').onsubmit=async e=>{
   else if(collection==='bezerros')data={...recordEditor.data,descricao:values.descricao.trim(),nascimento:values.nascimento,brinco:values.brinco.trim(),ts:Date.now()};
   else{
     data={...recordEditor.data,...values,ts:Date.now()};
-    for(const field of ['areaHa','estoqueMinimo','quantidade','producao','chuvaMm']){
+    for(const field of ['areaHa','estoqueMinimo','quantidade','producao','chuvaMm','latitude','longitude']){
       if(values[field]==='')delete data[field];
       else if(values[field]!==undefined)data[field]=Number(values[field]);
     }
-    for(const field of ['observacoes','variedade','plantio','colheitaPrevista','categoria','safraId','inputId','unidadeProducao','descricao','responsavel']){
+    for(const field of ['observacoes','variedade','plantio','colheitaPrevista','categoria','safraId','inputId','unidadeProducao','descricao','responsavel','latitude','longitude']){
       if(values[field]==='')delete data[field];
     }
     if(data.kind==='atividade'){

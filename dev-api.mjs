@@ -1,4 +1,5 @@
 import { randomUUID } from 'node:crypto';
+import { getWeatherForecast } from './shared/weather.js';
 
 const collections = new Set(['config', 'lancamentos', 'contas', 'vacas', 'bezerros', 'lavouras']);
 const users = new Set(['gabriel', 'alipio']);
@@ -102,6 +103,31 @@ export default async function devApiHandler(request, response) {
     }
 
     if (!sessionFor(request)) return send(response, 401, { error: 'Sua sessão expirou. Entre novamente.' });
+
+    if (request.method === 'GET' && route === 'maps-config') {
+      return send(response, 200, { apiKey: process.env.GOOGLE_MAPS_API_KEY || '' });
+    }
+
+    if (request.method === 'GET' && route === 'weather') {
+      const latitudeValue = url.searchParams.get('latitude');
+      const longitudeValue = url.searchParams.get('longitude');
+      const latitude = latitudeValue === null || latitudeValue.trim() === '' ? NaN : Number(latitudeValue);
+      const longitude = longitudeValue === null || longitudeValue.trim() === '' ? NaN : Number(longitudeValue);
+      if (!Number.isFinite(latitude) || latitude < -90 || latitude > 90
+        || !Number.isFinite(longitude) || longitude < -180 || longitude > 180) {
+        return send(response, 400, { error: 'Informe coordenadas válidas para consultar a previsão.' });
+      }
+      if (!process.env.WEATHERAPI_KEY) {
+        return send(response, 503, { error: 'Configure WEATHERAPI_KEY no ambiente do servidor para ativar a previsão.' });
+      }
+      try {
+        const forecast = await getWeatherForecast(latitude, longitude, process.env.WEATHERAPI_KEY);
+        return send(response, 200, forecast);
+      } catch (error) {
+        if (Number.isInteger(error.statusCode)) return send(response, error.statusCode, { error: error.message });
+        throw error;
+      }
+    }
 
     if (route === 'activity') {
       const username = sessionFor(request);
