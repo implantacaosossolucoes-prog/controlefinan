@@ -12,7 +12,8 @@ export async function getWeatherForecast(latitude, longitude, key) {
     q: `${latitude},${longitude}`,
     days: '3',
     aqi: 'no',
-    alerts: 'no'
+    alerts: 'no',
+    lang: 'pt'
   }).toString();
   let providerResponse;
   try {
@@ -48,6 +49,7 @@ export async function getWeatherForecast(latitude, longitude, key) {
       date: day.date,
       minC: day.day?.mintemp_c,
       maxC: day.day?.maxtemp_c,
+      condition: day.day?.condition?.text || '',
       rainChance: day.day?.daily_chance_of_rain,
       precipitationMm: day.day?.totalprecip_mm
     }))

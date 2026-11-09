@@ -296,7 +296,7 @@ test('weather endpoint normalizes and caches provider forecasts without exposing
       forecast: {
         forecastday: [{
           date: '2026-11-09',
-          day: { mintemp_c: 15, maxtemp_c: 25, daily_chance_of_rain: 60, totalprecip_mm: 3.2 }
+          day: { mintemp_c: 15, maxtemp_c: 25, condition: { text: 'Chuva leve' }, daily_chance_of_rain: 60, totalprecip_mm: 3.2 }
         }]
       }
     }), { status: 200, headers: { 'Content-Type': 'application/json' } });
@@ -309,11 +309,12 @@ test('weather endpoint normalizes and caches provider forecasts without exposing
     assert.deepEqual(first.json(), {
       location: 'Fazenda',
       current: { temperatureC: 22.4, condition: 'Parcialmente nublado' },
-      days: [{ date: '2026-11-09', minC: 15, maxC: 25, rainChance: 60, precipitationMm: 3.2 }]
+      days: [{ date: '2026-11-09', minC: 15, maxC: 25, condition: 'Chuva leve', rainChance: 60, precipitationMm: 3.2 }]
     });
     assert.deepEqual(second.json(), first.json());
     assert.equal(calls.length, 1);
     assert.match(calls[0], /key=server-only-weather-key/);
+    assert.match(calls[0], /lang=pt/);
     assert.equal(JSON.stringify(first.json()).includes('server-only-weather-key'), false);
   } finally {
     globalThis.fetch = previousFetch;

@@ -286,23 +286,46 @@ button:disabled{cursor:wait;opacity:.6}
 .crop-location{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:7px;margin-top:10px}
 .crop-location input{width:100%;min-height:40px;background:var(--card)}
 .crop-map-button{width:100%;margin-top:8px}
-.crop-weather{margin-top:10px;padding:10px;border:1px solid var(--bd);border-radius:10px;background:color-mix(in srgb,var(--crop-soft) 55%,var(--card))}
-.crop-weather-head{display:flex;align-items:center;justify-content:space-between;gap:8px}
-.crop-weather-head strong{font-size:12px}
-.crop-weather-head small,.crop-weather-message{color:var(--mut);font-size:11px}
-.crop-weather-refresh{padding:4px 7px;font-size:11px}
-.crop-weather-current{margin:6px 0;font-size:13px;font-weight:650}
-.crop-weather-days{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px}
-.crop-weather-day{padding:7px;border:1px solid var(--bd);border-radius:8px;background:var(--card);font-size:11px}
-.crop-weather-day strong,.crop-weather-day span{display:block}
-.crop-weather-day span{margin-top:3px;color:var(--mut)}
+.crop-weather{margin-top:12px;padding:12px;border:1px solid var(--bd);border-radius:14px;background:linear-gradient(145deg,color-mix(in srgb,var(--crop-soft) 72%,var(--card)),var(--card) 76%)}
+.crop-weather-head{display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap}
+.crop-weather-title{display:flex;align-items:center;gap:8px;min-width:0}
+.crop-weather-title-icon{display:grid;width:34px;height:34px;flex:none;place-items:center;border:1px solid var(--crop-line);border-radius:11px;background:var(--card);font-size:19px}
+.crop-weather-title strong{display:block;font-size:13px;overflow-wrap:anywhere}
+.crop-weather-title small,.crop-weather-message{display:block;margin-top:2px;color:var(--mut);font-size:11px}
+.crop-weather-head-actions{display:flex;align-items:center;gap:7px}
+.crop-weather-updated{color:var(--mut);font-size:10px;white-space:nowrap}
+.crop-weather-refresh{padding:6px 9px;font-size:11px}
+.crop-weather-current{display:flex;align-items:center;gap:12px;margin:10px 0;padding:10px 12px;border:1px solid var(--crop-line);border-radius:12px;background:color-mix(in srgb,var(--crop-soft) 70%,var(--card))}
+.crop-weather-current-icon{font-size:32px;line-height:1}
+.crop-weather-current-temp{font-size:25px;font-weight:800;line-height:1;letter-spacing:-.04em}
+.crop-weather-current-info{min-width:0}
+.crop-weather-current-info strong{display:block;font-size:12px;overflow-wrap:anywhere}
+.crop-weather-current-info small{display:block;margin-top:3px;color:var(--mut);font-size:11px}
+.crop-weather-days{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
+.crop-weather-day{min-width:0;padding:10px;border:1px solid var(--bd);border-radius:12px;background:var(--card);font-size:11px}
+.crop-weather-day-head{display:flex;align-items:center;justify-content:space-between;gap:6px}
+.crop-weather-day-head strong{font-size:11px;text-transform:capitalize}
+.crop-weather-day-icon{font-size:20px;line-height:1}
+.crop-weather-day-condition{min-height:28px;margin-top:3px;color:var(--mut);font-size:10px;line-height:1.35}
+.crop-weather-day-temps{display:flex;align-items:baseline;gap:6px;margin-top:5px}
+.crop-weather-day-temps strong{font-size:14px}
+.crop-weather-day-temps span{color:var(--mut);font-size:11px}
+.crop-weather-rain{margin-top:8px;padding-top:7px;border-top:1px solid var(--bd)}
+.crop-weather-rain-line{display:flex;align-items:center;justify-content:space-between;gap:5px;font-size:10px}
+.crop-weather-rain-line strong{font-size:11px}
+.crop-weather-rain-track{height:5px;margin-top:5px;overflow:hidden;border-radius:99px;background:var(--bd)}
+.crop-weather-rain-track span{display:block;height:100%;border-radius:inherit;background:#38bdf8}
+.crop-weather-total-rain{display:block;margin-top:4px;color:var(--mut);font-size:10px}
+.crop-weather-source{display:block;margin-top:9px;color:var(--mut);font-size:10px}
+#cropMapArea{display:grid;gap:3px;margin-top:5px;color:#166534}
+#cropMapArea .crop-map-area-hectares{font-size:14px;font-weight:750}
+#cropMapArea .crop-map-area-meters{color:var(--mut);font-size:12px;font-weight:600}
 #cropMapDialog{width:min(900px,calc(100% - 24px));max-width:none;max-height:calc(100dvh - 24px);padding:16px;border:1px solid var(--bd);border-radius:14px;background:var(--card);color:var(--tx)}
 #cropMapDialog::backdrop{background:#0008}
 #cropMapDialog h2{margin:0;font-size:18px}
 #cropMap{width:100%;height:min(58dvh,520px);min-height:280px;margin:12px 0;border:1px solid var(--bd);border-radius:10px}
 .crop-map-actions{display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap}
 .crop-map-actions p{flex:1 1 240px;margin:0;color:var(--mut);font-size:12px}
-#cropMapArea{display:block;margin-top:5px;color:#166534;font-size:13px}
 .crop-map-buttons{display:flex;gap:8px;flex-wrap:wrap}
 .crop-toolbar{display:grid;grid-template-columns:minmax(180px,1fr) minmax(220px,2fr);gap:8px;margin:14px 0 10px}
 .crop-toolbar input,.crop-toolbar select{width:100%;min-height:42px;background:var(--card)}
@@ -325,7 +348,7 @@ button:disabled{cursor:wait;opacity:.6}
 @media(max-width:850px){.crop-stats{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media(max-width:680px){.crop-layout{grid-template-columns:minmax(0,1fr)}.crop-panel-wide{grid-column:auto}.crop-hero{padding:18px}.crop-hero-mark{width:58px;height:58px;border-radius:18px;font-size:30px}}
 @media(max-width:520px){.crop-stats{gap:7px}.crop-stat{gap:9px;padding:11px}.crop-stat-icon{width:34px;height:34px;border-radius:10px;font-size:17px}.crop-stat strong{font-size:17px}.crop-hero h2{font-size:21px}.crop-form{padding:11px}.crop-form .row,.crop-form .crop-row-three{grid-template-columns:minmax(0,1fr)}.crop-toolbar{grid-template-columns:minmax(0,1fr)}.crop-diary-entry{grid-template-columns:46px minmax(0,1fr);gap:9px;padding:10px}.crop-diary-date{min-height:48px}.crop-diary-actions{grid-column:2;justify-self:end;margin-top:-5px}}
-@media(max-width:520px){.crop-weather-days{grid-template-columns:minmax(0,1fr)}.crop-map-actions,.crop-map-buttons{width:100%}.crop-map-buttons button{flex:1}}
+@media(max-width:520px){.crop-weather-days{grid-template-columns:minmax(0,1fr)}.crop-weather-day-condition{min-height:0}.crop-map-actions,.crop-map-buttons{width:100%}.crop-map-buttons button{flex:1}}
 @media(prefers-reduced-motion:reduce){.crop-primary,.crop-record{transition:none}}
 @media(prefers-color-scheme:dark){:root:not([data-theme="light"]) .crop-hero{border-color:#24583a;background:linear-gradient(115deg,#14251b 0%,var(--card) 80%);color:#dcfce7}:root:not([data-theme="light"]) .crop-hero p{color:#a7b9aa}:root:not([data-theme="light"]) .crop-stat-icon,:root:not([data-theme="light"]) .crop-badge{background:#173324;color:#86efac}:root:not([data-theme="light"]) .crop-badge.is-planned{border-color:#1e3a8a;background:#172554;color:#93c5fd}:root:not([data-theme="light"]) .crop-badge.is-closed{border-color:var(--bd);background:var(--bg);color:var(--mut)}:root:not([data-theme="light"]) .crop-badge.is-warning{border-color:#7f1d1d;background:#450a0a;color:#fca5a5}:root:not([data-theme="light"]) .crop-diary-date{background:#173324;color:#86efac}}
 </style>
@@ -704,7 +727,7 @@ button:disabled{cursor:wait;opacity:.6}
 <input id="photoReplaceInput" type="file" accept="image/*" capture="environment" hidden>
 <dialog id="cowCalvingDialog" aria-labelledby="cowCalvingTitle"><form id="cowCalvingForm"><h2 id="cowCalvingTitle">Registrar parto</h2><p id="cowCalvingCow"></p><label for="calfObservations">Observações do bezerro (opcional)</label><textarea id="calfObservations" maxlength="2000" placeholder="Ex.: sexo, cor, peso, número do brinco ou cuidados"></textarea><div class="cow-calving-actions"><button type="button" id="cowCalvingCancel" class="secondary-button">Cancelar</button><button type="submit" id="cowCalvingSave">Salvar parto</button></div></form></dialog>
 <dialog id="calfPhotoViewer" aria-label="Visualização da foto"><button id="calfPhotoClose" type="button" aria-label="Fechar foto">×</button><figure><img id="calfPhotoViewerImage" alt=""></figure></dialog>
-<dialog id="cropMapDialog" aria-labelledby="cropMapTitle"><h2 id="cropMapTitle">Localização e área do talhão</h2><div id="cropMap" role="application" aria-label="Mapa para marcar ou demarcar o talhão"></div><div class="crop-map-actions"><div><p id="cropMapStatus" role="status">Use “Desenhar área” e clique nos vértices do perímetro.</p><strong id="cropMapArea" role="status" aria-live="polite">Área medida: —</strong></div><div class="crop-map-buttons"><button type="button" id="cropMapGeolocate" class="secondary-button">Minha localização</button><button type="button" id="cropMapDraw" class="secondary-button">Desenhar área</button><button type="button" id="cropMapFinish" class="secondary-button" hidden>Concluir desenho (0/3)</button><button type="button" id="cropMapClear" class="secondary-button">Limpar área</button><button type="button" id="cropMapCancel" class="secondary-button">Cancelar</button><button type="button" id="cropMapConfirm" class="crop-primary" disabled>Usar localização</button></div></div></dialog>
+<dialog id="cropMapDialog" aria-labelledby="cropMapTitle"><h2 id="cropMapTitle">Localização e área do talhão</h2><div id="cropMap" role="application" aria-label="Mapa para marcar ou demarcar o talhão"></div><div class="crop-map-actions"><div><p id="cropMapStatus" role="status">Use “Desenhar área” e clique nos vértices do perímetro.</p><div id="cropMapArea" role="status" aria-live="polite"><span>Área medida: —</span></div></div><div class="crop-map-buttons"><button type="button" id="cropMapGeolocate" class="secondary-button">Minha localização</button><button type="button" id="cropMapDraw" class="secondary-button">Desenhar área</button><button type="button" id="cropMapFinish" class="secondary-button" hidden>Concluir desenho (0/3)</button><button type="button" id="cropMapClear" class="secondary-button">Limpar área</button><button type="button" id="cropMapCancel" class="secondary-button">Cancelar</button><button type="button" id="cropMapConfirm" class="crop-primary" disabled>Usar localização</button></div></div></dialog>
 <div id="login"><div class="box">
   <img class="brand-logo" src="/logo.png" alt="Logo AgroBack">
   <h2>Controle Financeiro</h2>
@@ -921,16 +944,32 @@ function renderCropWeather(plot,container){
   const request=apiRequest(`/api/weather?${query}`).then(forecast=>{
     const updated=Date.now();
     const timestamp=new Date(updated).toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'});
+    const weatherIcon=condition=>{
+      const text=String(condition||'').toLocaleLowerCase('pt-BR');
+      if(/trovo|tempest|thunder/.test(text))return '⛈️';
+      if(/neve|snow|granizo|hail/.test(text))return '🌨️';
+      if(/chuva|garoa|rain|drizzle/.test(text))return '🌧️';
+      if(/nublado|encoberto|cloudy|overcast/.test(text))return '☁️';
+      if(/neblina|névoa|fog|mist/.test(text))return '🌫️';
+      if(/ensolarado|sol|sunny|clear/.test(text))return '☀️';
+      return '⛅';
+    };
     const days=forecast.days.map(day=>{
       const date=new Date(`${day.date}T12:00:00`).toLocaleDateString('pt-BR',{weekday:'short',day:'2-digit',month:'2-digit'});
-      const temperatures=Number.isFinite(day.minC)&&Number.isFinite(day.maxC)
-        ?`${day.minC.toLocaleString('pt-BR',{maximumFractionDigits:0})}°–${day.maxC.toLocaleString('pt-BR',{maximumFractionDigits:0})}°`
-        :'Sem dados';
-      const rain=Number.isFinite(day.rainChance)?`${day.rainChance}% chance de chuva`:'Chance indisponível';
-      const amount=Number.isFinite(day.precipitationMm)?` · ${day.precipitationMm.toLocaleString('pt-BR',{maximumFractionDigits:1})} mm`:'';
-      return `<div class="crop-weather-day"><strong>${esc(date)}</strong><span>${esc(temperatures)}</span><span>${esc(rain+amount)}</span></div>`;
+      const condition=day.condition||'Condição indisponível';
+      const temperatures=Number.isFinite(day.maxC)&&Number.isFinite(day.minC)
+        ?`<strong>${day.maxC.toLocaleString('pt-BR',{maximumFractionDigits:0})}°</strong><span>Mín. ${day.minC.toLocaleString('pt-BR',{maximumFractionDigits:0})}°</span>`
+        :'<strong>—</strong><span>Temperatura indisponível</span>';
+      const rainChance=Number.isFinite(day.rainChance)?Math.min(100,Math.max(0,day.rainChance)):null;
+      const rainChanceText=rainChance===null?'—':`${rainChance}%`;
+      const amount=Number.isFinite(day.precipitationMm)?`${day.precipitationMm.toLocaleString('pt-BR',{maximumFractionDigits:1})} mm`:'— mm';
+      return `<article class="crop-weather-day"><div class="crop-weather-day-head"><strong>${esc(date)}</strong><span class="crop-weather-day-icon" aria-hidden="true">${weatherIcon(condition)}</span></div><div class="crop-weather-day-condition">${esc(condition)}</div><div class="crop-weather-day-temps">${temperatures}</div><div class="crop-weather-rain"><div class="crop-weather-rain-line"><span>🌧️ Chuva</span><strong>${rainChanceText}</strong></div><div class="crop-weather-rain-track" role="progressbar" aria-label="Probabilidade de chuva" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${rainChance??0}"><span style="width:${rainChance??0}%"></span></div><div class="crop-weather-rain-line"><span>Precipitação</span><span>${amount}</span></div></div></article>`;
     }).join('');
-    const html=`<div class="crop-weather-head"><strong>Previsão · ${esc(forecast.location||plot.nome)}</strong><small>Atualizada às ${timestamp}</small><button type="button" class="secondary-button crop-weather-refresh" data-weather-refresh="${esc(plot.id)}" aria-label="Atualizar previsão de ${esc(plot.nome)}">Atualizar</button></div><div class="crop-weather-current">${Number.isFinite(forecast.current?.temperatureC)?`${forecast.current.temperatureC.toLocaleString('pt-BR',{maximumFractionDigits:0})}°C agora`:''}${forecast.current?.condition?` · ${esc(forecast.current.condition)}`:''}</div><div class="crop-weather-days">${days}</div><small class="crop-weather-message">Fonte: WeatherAPI · previsão sujeita a alterações.</small>`;
+    const currentCondition=forecast.current?.condition||'Condição indisponível';
+    const currentTemperature=Number.isFinite(forecast.current?.temperatureC)
+      ?`${forecast.current.temperatureC.toLocaleString('pt-BR',{maximumFractionDigits:0})}°C`
+      :'—°C';
+    const html=`<div class="crop-weather-head"><strong>Previsão · ${esc(forecast.location||plot.nome)}</strong><div class="crop-weather-head-actions"><small class="crop-weather-updated">Atualizada às ${timestamp}</small><button type="button" class="secondary-button crop-weather-refresh" data-weather-refresh="${esc(plot.id)}" aria-label="Atualizar previsão de ${esc(plot.nome)}">Atualizar</button></div></div><div class="crop-weather-current"><span class="crop-weather-current-icon" aria-hidden="true">${weatherIcon(currentCondition)}</span><span class="crop-weather-current-temp">${currentTemperature}</span><span class="crop-weather-current-info"><strong>${esc(currentCondition)}</strong><small>Agora · temperatura atual</small></span></div><div class="crop-weather-days">${days}</div><small class="crop-weather-message">Fonte: WeatherAPI · previsão sujeita a alterações.</small>`;
     cropWeatherCache.set(cacheKey,{html,expiresAt:updated+15*60*1000});
     if(cropById(plot.id)?.latitude===plot.latitude&&cropById(plot.id)?.longitude===plot.longitude){
       const target=document.getElementById(`cropWeather-${plot.id}`);
@@ -1070,9 +1109,9 @@ function updateCropMapActions(){
   $('cropMapDraw').hidden=cropMapDrawing;
   $('cropMapClear').disabled=!cropMapPolygon&&!cropMapBoundary.length;
   $('cropMapConfirm').disabled=cropMapDrawing||(cropMapPolygon?count<3:!cropMapCoordinates&&!cropMapBoundary.length);
-  $('cropMapArea').textContent=count>=3
-    ?`Área medida: ${(areaSquareMeters/10000).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2})} ha (${areaSquareMeters.toLocaleString('pt-BR',{maximumFractionDigits:0})} m²)`
-    :'Área medida: desenhe um perímetro com pelo menos 3 pontos.';
+  $('cropMapArea').innerHTML=count>=3
+    ?`<span class="crop-map-area-hectares">${(areaSquareMeters/10000).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2})} ha</span><span class="crop-map-area-meters">${areaSquareMeters.toLocaleString('pt-BR',{maximumFractionDigits:0})} m²</span>`
+    :'<span>Área medida: desenhe um perímetro com pelo menos 3 pontos.</span>';
 }
 function cropMapPolygonPoints(){
   if(!cropMapPolygon)return[];
