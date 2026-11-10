@@ -329,6 +329,11 @@ button:disabled{cursor:wait;opacity:.6}
 .crop-map-buttons{display:flex;gap:8px;flex-wrap:wrap}
 .crop-toolbar{display:grid;grid-template-columns:minmax(180px,1fr) minmax(220px,2fr);gap:8px;margin:14px 0 10px}
 .crop-toolbar input,.crop-toolbar select{width:100%;min-height:42px;background:var(--card)}
+.crop-season-toolbar{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin-top:12px}
+.crop-season-toolbar input,.crop-season-toolbar select{width:100%;min-height:42px;background:var(--card)}
+.crop-season-toolbar input[type="search"]{grid-column:1/-1}
+.crop-season-toolbar button{min-height:42px}
+.crop-season-filter-count{display:block;margin-top:7px;color:var(--mut);font-size:12px}
 .crop-diary{display:grid;gap:8px}
 .crop-diary-entry{display:grid;grid-template-columns:54px minmax(0,1fr) auto;align-items:start;gap:12px;padding:12px;border:1px solid var(--bd);border-radius:12px;background:var(--card)}
 .crop-diary-date{display:grid;min-height:52px;place-content:center;border-radius:10px;background:var(--crop-soft);color:#166534;text-align:center}
@@ -347,7 +352,7 @@ button:disabled{cursor:wait;opacity:.6}
 :root[data-theme="dark"] .crop-diary-date{background:#173324;color:#86efac}
 @media(max-width:850px){.crop-stats{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media(max-width:680px){.crop-layout{grid-template-columns:minmax(0,1fr)}.crop-panel-wide{grid-column:auto}.crop-hero{padding:18px}.crop-hero-mark{width:58px;height:58px;border-radius:18px;font-size:30px}}
-@media(max-width:520px){.crop-stats{gap:7px}.crop-stat{gap:9px;padding:11px}.crop-stat-icon{width:34px;height:34px;border-radius:10px;font-size:17px}.crop-stat strong{font-size:17px}.crop-hero h2{font-size:21px}.crop-form{padding:11px}.crop-form .row,.crop-form .crop-row-three{grid-template-columns:minmax(0,1fr)}.crop-toolbar{grid-template-columns:minmax(0,1fr)}.crop-diary-entry{grid-template-columns:46px minmax(0,1fr);gap:9px;padding:10px}.crop-diary-date{min-height:48px}.crop-diary-actions{grid-column:2;justify-self:end;margin-top:-5px}}
+@media(max-width:520px){.crop-stats{gap:7px}.crop-stat{gap:9px;padding:11px}.crop-stat-icon{width:34px;height:34px;border-radius:10px;font-size:17px}.crop-stat strong{font-size:17px}.crop-hero h2{font-size:21px}.crop-form{padding:11px}.crop-form .row,.crop-form .crop-row-three{grid-template-columns:minmax(0,1fr)}.crop-toolbar,.crop-season-toolbar{grid-template-columns:minmax(0,1fr)}.crop-season-toolbar input[type="search"]{grid-column:auto}.crop-diary-entry{grid-template-columns:46px minmax(0,1fr);gap:9px;padding:10px}.crop-diary-date{min-height:48px}.crop-diary-actions{grid-column:2;justify-self:end;margin-top:-5px}}
 @media(max-width:520px){
   .crop-weather-days{grid-template-columns:minmax(0,1fr)}
   .crop-weather-day-condition{min-height:0}
@@ -598,13 +603,27 @@ button:disabled{cursor:wait;opacity:.6}
         </select>
         <input id="cropSeasonName" maxlength="80" aria-label="Identificação da safra" placeholder="Safra (ex.: 2026/27)">
       </div>
-      <div class="row">
+      <div class="row crop-row-three">
         <input id="cropSeasonVariety" maxlength="120" aria-label="Variedade da cultura" placeholder="Variedade (opcional)">
         <label class="crop-field">Data do plantio<input id="cropSeasonPlanting" type="date"></label>
         <label class="crop-field">Colheita prevista<input id="cropSeasonHarvest" type="date"></label>
       </div>
       <button type="button" id="cropSeasonAdd" class="crop-primary">＋ Cadastrar safra</button>
     </div>
+    <div class="crop-season-toolbar" role="search" aria-label="Filtros de safras">
+      <input id="cropSeasonSearch" type="search" aria-label="Buscar safra" placeholder="Buscar safra ou variedade">
+      <select id="cropSeasonFilterCulture" aria-label="Filtrar safras por cultura">
+        <option value="">Todas as culturas</option>
+        <option value="milho">Milho</option><option value="soja">Soja</option><option value="aveia">Aveia</option><option value="feijao">Feijão</option>
+      </select>
+      <select id="cropSeasonFilterPlot" aria-label="Filtrar safras por talhão"><option value="">Todos os talhões</option></select>
+      <select id="cropSeasonFilterStatus" aria-label="Filtrar safras por situação">
+        <option value="">Todas as situações</option>
+        <option value="planejada">Planejada</option><option value="em_andamento">Em andamento</option><option value="encerrada">Encerrada</option>
+      </select>
+      <button type="button" id="clearCropSeasonFilters" class="secondary-button">Limpar filtros</button>
+    </div>
+    <small id="cropSeasonFilterCount" class="crop-season-filter-count" role="status" aria-live="polite"></small>
     <div id="cropSeasons" class="crop-record-list"></div>
   </section>
   <section class="card crop-panel" aria-labelledby="cropInputsTitle">
@@ -1008,6 +1027,7 @@ function renderCropSelects(){
   const seasons=cropRecords('safra').sort((a,b)=>a.nome.localeCompare(b.nome,'pt-BR'));
   const inputs=cropRecords('insumo').sort((a,b)=>a.nome.localeCompare(b.nome,'pt-BR'));
   setOptions($('cropSeasonPlot'),'Selecione o talhão',plots,p=>`${p.nome} · ${p.areaHa} ha`,$('cropSeasonPlot').value);
+  setOptions($('cropSeasonFilterPlot'),'Todos os talhões',plots,p=>p.nome,$('cropSeasonFilterPlot').value);
   setOptions($('cropActivitySeason'),'Selecione a safra',seasons,s=>`${cropCultureLabels[s.cultura]||s.cultura} · ${s.nome}`,$('cropActivitySeason').value);
   setOptions($('cropActivityFilter'),'Todas as safras',seasons,s=>`${cropCultureLabels[s.cultura]||s.cultura} · ${s.nome}`,$('cropActivityFilter').value);
   setOptions($('cropActivityInput'),'Selecione o insumo',inputs,i=>`${i.nome} (${i.unidade})`,$('cropActivityInput').value);
@@ -1031,7 +1051,21 @@ function renderCropModule(){
     const weatherContainer=document.getElementById(`cropWeather-${plot.id}`);
     if(weatherContainer)renderCropWeather(plot,weatherContainer);
   }
-  $('cropSeasons').innerHTML=seasons.length?seasons.sort((a,b)=>b.nome.localeCompare(a.nome,'pt-BR')).map(season=>{
+  const seasonQuery=norm($('cropSeasonSearch').value);
+  const seasonCulture=$('cropSeasonFilterCulture').value;
+  const seasonPlot=$('cropSeasonFilterPlot').value;
+  const seasonStatus=$('cropSeasonFilterStatus').value;
+  const visibleSeasons=seasons.filter(season=>{
+    const plot=cropById(season.talhaoId);
+    const status=season.status==='encerrada'?'encerrada':season.status==='planejada'?'planejada':'em_andamento';
+    const searchText=norm([season.nome,season.variedade,cropCultureLabels[season.cultura],plot?.nome].filter(Boolean).join(' '));
+    return (!seasonQuery||searchText.includes(seasonQuery))
+      &&(!seasonCulture||season.cultura===seasonCulture)
+      &&(!seasonPlot||season.talhaoId===seasonPlot)
+      &&(!seasonStatus||status===seasonStatus);
+  });
+  $('cropSeasonFilterCount').textContent=seasons.length?`Mostrando ${visibleSeasons.length} de ${seasons.length} safras.`:'';
+  $('cropSeasons').innerHTML=visibleSeasons.length?visibleSeasons.sort((a,b)=>b.nome.localeCompare(a.nome,'pt-BR')).map(season=>{
     const plot=cropById(season.talhaoId);
     const harvests=activities.filter(activity=>activity.safraId===season.id&&activity.operacao==='colheita');
     const produced=harvests.reduce((sum,activity)=>sum+(activity.producao||0),0);
@@ -1041,7 +1075,7 @@ function renderCropModule(){
     const statusClass=season.status==='encerrada'?'is-closed':season.status==='planejada'?'is-planned':'';
     const statusLabel=season.status==='encerrada'?'Encerrada':season.status==='planejada'?'Planejada':'Em andamento';
     return `<article class="crop-record"><div class="crop-record-main"><div class="crop-record-title">${esc(cropCultureLabels[season.cultura]||season.cultura)} · ${esc(season.nome)} <span class="crop-badge ${statusClass}">${statusLabel}</span></div><small class="crop-record-meta">${plot?`Talhão ${esc(plot.nome)} · ${plot.areaHa.toLocaleString('pt-BR')} ha`:'Talhão não encontrado'}${season.variedade?' · '+esc(season.variedade):''}</small><small class="crop-record-meta">${season.plantio?'Plantio '+dd(season.plantio):'Plantio não informado'}${season.colheitaPrevista?' · Colheita prevista '+dd(season.colheitaPrevista):''}</small><small class="crop-record-meta">${yieldText} · Despesas vinculadas: ${brl(costs)}</small></div>${canWrite?`<div class="crop-record-actions"><button class="record-edit x" data-id="${esc(season.id)}" title="Editar safra" aria-label="Editar safra">✎</button><button class="crop-delete x" data-id="${esc(season.id)}" data-label="${esc(season.nome)}" title="Excluir safra" aria-label="Excluir safra">✕</button></div>`:''}</article>`;
-  }).join(''):'<div class="crop-empty">Nenhuma safra cadastrada. Escolha um talhão e registre a cultura deste ciclo.</div>';
+  }).join(''):seasons.length?'<div class="crop-empty">Nenhuma safra corresponde aos filtros selecionados.</div>':'<div class="crop-empty">Nenhuma safra cadastrada. Escolha um talhão e registre a cultura deste ciclo.</div>';
   $('cropInputs').innerHTML=inputsList.length?inputsList.sort((a,b)=>a.nome.localeCompare(b.nome,'pt-BR')).map(input=>{
     const balance=cropStockBalance(input.id),low=balance<0||input.estoqueMinimo>0&&balance<=input.estoqueMinimo;
     return `<article class="crop-record"><div class="crop-record-main"><div class="crop-record-title">${esc(input.nome)} <span class="crop-badge${low?' is-warning':''}">${balance.toLocaleString('pt-BR',{maximumFractionDigits:2})} ${esc(input.unidade)}</span></div><small class="crop-record-meta">${input.categoria?esc(input.categoria)+' · ':''}${input.estoqueMinimo>0?'Mínimo '+input.estoqueMinimo+' '+esc(input.unidade):'Sem mínimo configurado'}${low?' · Reposição necessária':''}</small></div>${canWrite?`<div class="crop-record-actions"><button class="record-edit x" data-id="${esc(input.id)}" title="Editar insumo" aria-label="Editar insumo">✎</button><button class="crop-delete x" data-id="${esc(input.id)}" data-label="${esc(input.nome)}" title="Excluir insumo" aria-label="Excluir insumo">✕</button></div>`:''}</article>`;
@@ -1409,6 +1443,17 @@ $('cropActivityAdd').onclick=async()=>{
 $('cropActivityType').onchange=resetCropActivityFields;
 $('cropActivityFilter').onchange=renderCropModule;
 $('cropActivitySearch').oninput=renderCropModule;
+$('cropSeasonSearch').oninput=renderCropModule;
+$('cropSeasonFilterCulture').onchange=renderCropModule;
+$('cropSeasonFilterPlot').onchange=renderCropModule;
+$('cropSeasonFilterStatus').onchange=renderCropModule;
+$('clearCropSeasonFilters').onclick=()=>{
+  $('cropSeasonSearch').value='';
+  $('cropSeasonFilterCulture').value='';
+  $('cropSeasonFilterPlot').value='';
+  $('cropSeasonFilterStatus').value='';
+  renderCropModule();
+};
 $('cropActivitySeason').onchange=renderCropModule;
 $('movementCropSeason').onchange=()=>{
   const season=cropById($('movementCropSeason').value);
