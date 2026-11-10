@@ -265,7 +265,8 @@ button:disabled{cursor:wait;opacity:.6}
 .crop-form [hidden]{display:none}
 .crop-form .crop-row-three{grid-template-columns:repeat(3,minmax(0,1fr))}
 .crop-form .crop-season-dates{grid-template-columns:minmax(0,2fr) repeat(2,minmax(0,1fr))}
-.crop-season-dates .crop-field input{max-width:165px}
+.crop-season-dates .crop-field{align-self:start}
+.crop-season-dates .crop-field input[type="date"]{width:165px;max-width:100%;height:44px;max-height:44px;min-height:44px;flex:none;padding:8px}
 .crop-form input,.crop-form select{width:100%;min-height:44px;background:var(--card)}
 .crop-field{display:flex;min-width:0;flex-direction:column;gap:5px;color:var(--mut);font-size:12px;font-weight:600}
 .crop-field input{width:100%;margin:0;font-size:14px}
