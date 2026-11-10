@@ -264,6 +264,8 @@ button:disabled{cursor:wait;opacity:.6}
 .crop-form .row:last-of-type{margin-bottom:0}
 .crop-form [hidden]{display:none}
 .crop-form .crop-row-three{grid-template-columns:repeat(3,minmax(0,1fr))}
+.crop-form .crop-season-dates{grid-template-columns:minmax(0,2fr) repeat(2,minmax(0,1fr))}
+.crop-season-dates .crop-field input{max-width:165px}
 .crop-form input,.crop-form select{width:100%;min-height:44px;background:var(--card)}
 .crop-field{display:flex;min-width:0;flex-direction:column;gap:5px;color:var(--mut);font-size:12px;font-weight:600}
 .crop-field input{width:100%;margin:0;font-size:14px}
@@ -273,6 +275,13 @@ button:disabled{cursor:wait;opacity:.6}
 .crop-record-list{display:grid;gap:8px;margin-top:12px}
 .crop-record{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;min-width:0;padding:12px;border:1px solid var(--bd);border-radius:12px;background:var(--card);transition:border-color .15s,box-shadow .15s}
 .crop-record:hover{border-color:#86efac;box-shadow:0 3px 12px #1665340d}
+.crop-plot-record{display:block;padding:0;overflow:hidden}
+.crop-plot-summary{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px;cursor:pointer;list-style:none}
+.crop-plot-summary::-webkit-details-marker{display:none}
+.crop-plot-summary::after{content:'＋';flex:none;color:var(--mut);font-size:17px}
+.crop-plot-record[open]>.crop-plot-summary::after{content:'−'}
+.crop-plot-details{padding:0 12px 12px}
+.crop-plot-details .crop-weather{margin-top:10px}
 .crop-record-main{min-width:0;flex:1}
 .crop-record-title{display:flex;align-items:center;flex-wrap:wrap;gap:7px;font-size:14px;font-weight:700;overflow-wrap:anywhere}
 .crop-record-meta{display:block;margin-top:4px;color:var(--mut);font-size:12px;line-height:1.55;overflow-wrap:anywhere}
@@ -603,7 +612,7 @@ button:disabled{cursor:wait;opacity:.6}
         </select>
         <input id="cropSeasonName" maxlength="80" aria-label="Identificação da safra" placeholder="Safra (ex.: 2026/27)">
       </div>
-      <div class="row crop-row-three">
+      <div class="row crop-row-three crop-season-dates">
         <input id="cropSeasonVariety" maxlength="120" aria-label="Variedade da cultura" placeholder="Variedade (opcional)">
         <label class="crop-field">Data do plantio<input id="cropSeasonPlanting" type="date"></label>
         <label class="crop-field">Colheita prevista<input id="cropSeasonHarvest" type="date"></label>
@@ -1046,10 +1055,11 @@ function renderCropModule(){
   $('cropSeasonCount').textContent=String(seasons.filter(season=>season.status!=='encerrada').length);
   $('cropAreaTotal').textContent=seasons.filter(season=>season.status!=='encerrada').reduce((total,season)=>total+(cropById(season.talhaoId)?.areaHa||0),0).toLocaleString('pt-BR',{maximumFractionDigits:2})+' ha';
   $('cropLowStockCount').textContent=String(inputsList.filter(input=>cropStockBalance(input.id)<0||input.estoqueMinimo>0&&cropStockBalance(input.id)<=input.estoqueMinimo).length);
-  $('cropPlots').innerHTML=plots.length?plots.sort((a,b)=>a.nome.localeCompare(b.nome,'pt-BR')).map(plot=>`<article class="crop-record"><div class="crop-record-main"><div class="crop-record-title">${esc(plot.nome)} <span class="crop-badge">${plot.areaHa.toLocaleString('pt-BR')} ha · ${(plot.areaHa*10000).toLocaleString('pt-BR',{maximumFractionDigits:0})} m²</span>${plot.boundary?.length>=3?` <span class="crop-badge">Área demarcada · ${plot.boundary.length} pontos</span>`:''}</div><small class="crop-record-meta">${plot.observacoes?esc(plot.observacoes)+' · ':''}${Number.isFinite(plot.latitude)&&Number.isFinite(plot.longitude)?`Localização: ${plot.latitude.toFixed(5)}, ${plot.longitude.toFixed(5)} · `:''}Despesas vinculadas: ${brl(cropExpenseTotal('',plot.id))}</small><div class="crop-weather" id="cropWeather-${esc(plot.id)}"><span class="crop-weather-message">${Number.isFinite(plot.latitude)&&Number.isFinite(plot.longitude)?'Carregando previsão do tempo...':'Marque a localização no mapa para ativar a previsão automática.'}</span></div></div>${canWrite?`<div class="crop-record-actions"><button class="record-edit x" data-id="${esc(plot.id)}" title="Editar talhão" aria-label="Editar talhão">✎</button><button class="crop-delete x" data-id="${esc(plot.id)}" data-label="${esc(plot.nome)}" title="Excluir talhão" aria-label="Excluir talhão">✕</button></div>`:''}</article>`).join(''):'<div class="crop-empty">Nenhum talhão cadastrado. Crie o primeiro para iniciar o planejamento da lavoura.</div>';
+  const expandedPlots=new Set([...$('cropPlots').querySelectorAll('details[open]')].map(element=>element.dataset.id));
+  $('cropPlots').innerHTML=plots.length?plots.sort((a,b)=>a.nome.localeCompare(b.nome,'pt-BR')).map(plot=>`<details class="crop-record crop-plot-record" data-id="${esc(plot.id)}"${expandedPlots.has(plot.id)?' open':''}><summary class="crop-plot-summary"><span class="crop-record-title">${esc(plot.nome)} <span class="crop-badge">${plot.areaHa.toLocaleString('pt-BR')} ha · ${(plot.areaHa*10000).toLocaleString('pt-BR',{maximumFractionDigits:0})} m²</span></span></summary><div class="crop-plot-details"><small class="crop-record-meta">${plot.boundary?.length>=3?`Área demarcada · ${plot.boundary.length} pontos · `:''}${plot.observacoes?esc(plot.observacoes)+' · ':''}${Number.isFinite(plot.latitude)&&Number.isFinite(plot.longitude)?`Localização: ${plot.latitude.toFixed(5)}, ${plot.longitude.toFixed(5)} · `:''}Despesas vinculadas: ${brl(cropExpenseTotal('',plot.id))}</small><div class="crop-weather" id="cropWeather-${esc(plot.id)}"><span class="crop-weather-message">${Number.isFinite(plot.latitude)&&Number.isFinite(plot.longitude)?'Carregando previsão do tempo...':'Marque a localização no mapa para ativar a previsão automática.'}</span></div>${canWrite?`<div class="crop-record-actions"><button class="record-edit x" data-id="${esc(plot.id)}" title="Editar talhão" aria-label="Editar talhão">✎</button><button class="crop-delete x" data-id="${esc(plot.id)}" data-label="${esc(plot.nome)}" title="Excluir talhão" aria-label="Excluir talhão">✕</button></div>`:''}</div></details>`).join(''):'<div class="crop-empty">Nenhum talhão cadastrado. Crie o primeiro para iniciar o planejamento da lavoura.</div>';
   for(const plot of plots){
     const weatherContainer=document.getElementById(`cropWeather-${plot.id}`);
-    if(weatherContainer)renderCropWeather(plot,weatherContainer);
+    if(weatherContainer?.closest('details')?.open)renderCropWeather(plot,weatherContainer);
   }
   const seasonQuery=norm($('cropSeasonSearch').value);
   const seasonCulture=$('cropSeasonFilterCulture').value;
@@ -1443,6 +1453,12 @@ $('cropActivityAdd').onclick=async()=>{
 $('cropActivityType').onchange=resetCropActivityFields;
 $('cropActivityFilter').onchange=renderCropModule;
 $('cropActivitySearch').oninput=renderCropModule;
+$('cropPlots').addEventListener('toggle',event=>{
+  if(!(event.target instanceof HTMLDetailsElement)||!event.target.open)return;
+  const plot=cropById(event.target.dataset.id);
+  const weatherContainer=event.target.querySelector('.crop-weather');
+  if(plot&&weatherContainer)renderCropWeather(plot,weatherContainer);
+},true);
 $('cropSeasonSearch').oninput=renderCropModule;
 $('cropSeasonFilterCulture').onchange=renderCropModule;
 $('cropSeasonFilterPlot').onchange=renderCropModule;
