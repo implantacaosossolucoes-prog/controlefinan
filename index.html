@@ -1177,7 +1177,7 @@ function loadGoogleMaps(){
   });
   return googleMapsPromise;
 }
-let deviceLocationMap=null,deviceLocationMarker=null,deviceLocationAccuracy=null,deviceLocationWatchId=null,deviceLocationStartPending=false;
+let deviceLocationMap=null,deviceLocationMaps=null,deviceLocationMarker=null,deviceLocationAccuracy=null,deviceLocationWatchId=null,deviceLocationStartPending=false,deviceLocationLastPosition=null;
 function stopDeviceLocation(message='Acompanhamento de localização parado.'){
   deviceLocationStartPending=false;
   if(deviceLocationWatchId!==null){
@@ -1188,6 +1188,29 @@ function stopDeviceLocation(message='Acompanhamento de localização parado.'){
   $('deviceLocationStop').disabled=true;
   $('deviceLocationStatus').textContent=message;
 }
+function renderDeviceLocationPosition(position){
+  if(!deviceLocationMap||!deviceLocationMaps)return;
+  const point={lat:position.coords.latitude,lng:position.coords.longitude};
+  const accuracy=position.coords.accuracy;
+  deviceLocationMap.setCenter(point);
+  deviceLocationMap.setZoom(17);
+  if(!deviceLocationMarker){
+    deviceLocationMarker=new deviceLocationMaps.Marker({map:deviceLocationMap,position,title:'Este celular'});
+    deviceLocationAccuracy=new deviceLocationMaps.Circle({
+      map:deviceLocationMap,
+      strokeColor:'#2563eb',
+      strokeOpacity:.8,
+      strokeWeight:2,
+      fillColor:'#2563eb',
+      fillOpacity:.12
+    });
+  }else{
+    deviceLocationMarker.setPosition(point);
+  }
+  deviceLocationAccuracy.setCenter(point);
+  deviceLocationAccuracy.setRadius(accuracy);
+  $('deviceLocationStatus').textContent=`Atualizado às ${new Date(position.timestamp).toLocaleTimeString('pt-BR')} · Precisão aproximada: ${Math.round(accuracy)} m · ${point.lat.toFixed(6)}, ${point.lng.toFixed(6)}`;
+}
 async function startDeviceLocation(){
   if(deviceLocationWatchId!==null||deviceLocationStartPending)return;
   if(!navigator.geolocation){
@@ -1197,10 +1220,29 @@ async function startDeviceLocation(){
   deviceLocationStartPending=true;
   $('deviceLocationStart').disabled=true;
   $('deviceLocationStop').disabled=false;
-  $('deviceLocationStatus').textContent='Carregando o mapa para iniciar...';
+  $('deviceLocationStatus').textContent='Solicitando permissão e aguardando a localização do celular...';
+  deviceLocationLastPosition=null;
+  try{
+    deviceLocationWatchId=navigator.geolocation.watchPosition(position=>{
+      deviceLocationLastPosition=position;
+      renderDeviceLocationPosition(position);
+    },error=>{
+      const message=error.code===1
+        ?'Acesso à localização negado. Nas permissões deste site no navegador, altere “Localização” para “Permitir” e tente novamente. Confira também se o navegador tem permissão de localização no celular e se o site usa HTTPS.'
+        :error.code===3
+          ?'A localização demorou para responder. Mantenha o acompanhamento ligado ou tente novamente.'
+          :'Não foi possível obter a localização. Confira o GPS e a permissão do navegador.';
+      if(error.code===1)stopDeviceLocation(message);
+      else $('deviceLocationStatus').textContent=message;
+    },{enableHighAccuracy:true,timeout:20000,maximumAge:0});
+  }catch(error){
+    stopDeviceLocation('Não foi possível solicitar a localização: '+error.message);
+    return;
+  }
   try{
     const maps=await loadGoogleMaps();
     if(!deviceLocationStartPending||activeView!=='location')return;
+    deviceLocationMaps=maps;
     if(!deviceLocationMap){
       deviceLocationMap=new maps.Map($('deviceLocationMap'),{
         center:{lat:-14.235,lng:-51.925},
@@ -1211,44 +1253,11 @@ async function startDeviceLocation(){
       });
     }
     requestAnimationFrame(()=>maps.event.trigger(deviceLocationMap,'resize'));
-    deviceLocationWatchId=navigator.geolocation.watchPosition(position=>{
-      const point={lat:position.coords.latitude,lng:position.coords.longitude};
-      const accuracy=position.coords.accuracy;
-      deviceLocationMap.setCenter(point);
-      deviceLocationMap.setZoom(17);
-      if(!deviceLocationMarker){
-        deviceLocationMarker=new maps.Marker({map:deviceLocationMap,position,title:'Este celular'});
-        deviceLocationAccuracy=new maps.Circle({
-          map:deviceLocationMap,
-          strokeColor:'#2563eb',
-          strokeOpacity:.8,
-          strokeWeight:2,
-          fillColor:'#2563eb',
-          fillOpacity:.12
-        });
-      }else{
-        deviceLocationMarker.setPosition(point);
-      }
-      deviceLocationAccuracy.setCenter(point);
-      deviceLocationAccuracy.setRadius(accuracy);
-      $('deviceLocationStatus').textContent=`Atualizado às ${new Date(position.timestamp).toLocaleTimeString('pt-BR')} · Precisão aproximada: ${Math.round(accuracy)} m · ${point.lat.toFixed(6)}, ${point.lng.toFixed(6)}`;
-    },error=>{
-      const message=error.code===1
-        ?'A permissão de localização foi negada. Autorize o acesso à localização nas configurações do navegador e tente novamente.'
-        :error.code===3
-          ?'A localização demorou para responder. Mantenha o acompanhamento ligado ou tente novamente.'
-          :'Não foi possível obter a localização. Confira o GPS e a permissão do navegador.';
-      if(error.code===1)stopDeviceLocation(message);
-      else $('deviceLocationStatus').textContent=message;
-    },{enableHighAccuracy:true,timeout:20000,maximumAge:0});
     deviceLocationStartPending=false;
-    $('deviceLocationStatus').textContent='Aguardando a localização do celular...';
+    if(deviceLocationLastPosition)renderDeviceLocationPosition(deviceLocationLastPosition);
   }catch(error){
     if(deviceLocationStartPending){
-      deviceLocationStartPending=false;
-      $('deviceLocationStart').disabled=false;
-      $('deviceLocationStop').disabled=true;
-      $('deviceLocationStatus').textContent='Não foi possível carregar o mapa: '+error.message;
+      stopDeviceLocation('Não foi possível carregar o mapa: '+error.message);
     }
   }
 }
