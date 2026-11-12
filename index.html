@@ -49,10 +49,13 @@ h1{font-size:22px;margin:0}
 .device-location-status{min-height:24px;color:var(--mut)}
 .device-location-controls{display:flex;gap:8px;flex-wrap:wrap}
 .device-location-controls button{min-height:44px}
+.device-location-primary-controls{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;flex:1 1 100%}
+.device-location-primary-controls button{min-width:0}
 .device-location-start{background:var(--ac);border-color:var(--ac);color:#fff;font-weight:650}
-.device-location-history-entry{display:flex;flex-direction:column;gap:3px;padding:10px 0;border-top:1px solid var(--bd)}
+.device-location-history-entry{display:flex;flex-direction:column;gap:3px;width:100%;padding:10px 0;border:0;border-top:1px solid var(--bd);border-radius:0;background:transparent;color:var(--tx);text-align:left;cursor:pointer}
 .device-location-history-entry:first-child{border-top:0}
 .device-location-history-entry small{color:var(--mut)}
+.device-location-history-entry:hover{background:var(--bg)}
 .card{background:var(--card);border:1px solid var(--bd);border-radius:14px;padding:14px;margin-bottom:14px}
 .sum{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px}
 .sum.extra{grid-template-columns:repeat(4,1fr);margin-top:10px}
@@ -250,6 +253,7 @@ button:disabled{cursor:wait;opacity:.6}
   .trend-row{grid-template-columns:78px minmax(40px,1fr) 84px;gap:6px}
   .dashboard-filter{flex-wrap:wrap}
 }
+@media(max-width:520px){.device-location-primary-controls button{padding:8px 6px;font-size:12px;line-height:1.2}}
 .crop-page{--crop-green:#15803d;--crop-soft:#f0fdf4;--crop-line:#dcfce7}
 .crop-hero{position:relative;display:flex;align-items:center;justify-content:space-between;gap:20px;overflow:hidden;margin:2px 0 14px;padding:22px 24px;border:1px solid #bbf7d0;border-radius:18px;background:linear-gradient(115deg,#f0fdf4 0%,#fff 72%);color:#14532d}
 .crop-hero-copy{position:relative;z-index:1;max-width:680px}
@@ -783,7 +787,7 @@ button:disabled{cursor:wait;opacity:.6}
   <div class="top"><h2>Localização deste celular</h2></div>
   <p class="device-location-note">“Iniciar localização em tempo real” acompanha o aparelho enquanto esta tela estiver aberta. Para salvar um ponto no histórico, toque em “Obter localização e salvar”. Cada toque grava uma posição no servidor, sem exclusão automática; somente Alipio pode acessar. O Google Maps pode processar as coordenadas para exibir o mapa.</p>
   <div id="deviceLocationMap" role="application" aria-label="Mapa mostrando a localização atual deste celular"></div>
-  <div class="device-location-controls"><button type="button" id="deviceLocationStart" class="device-location-start">Iniciar localização em tempo real</button><button type="button" id="deviceLocationSave" class="secondary-button">Obter localização e salvar</button><button type="button" id="deviceLocationStop" class="secondary-button" disabled>Parar</button></div>
+  <div class="device-location-controls"><div class="device-location-primary-controls"><button type="button" id="deviceLocationStart" class="device-location-start">Iniciar localização em tempo real</button><button type="button" id="deviceLocationSave" class="secondary-button">Obter localização e salvar</button></div><button type="button" id="deviceLocationStop" class="secondary-button" disabled>Parar</button></div>
   <p id="deviceLocationStatus" class="device-location-status" role="status" aria-live="polite">A localização está desligada.</p>
 </div>
 <div class="card">
@@ -1199,14 +1203,27 @@ function stopDeviceLocation(message='Acompanhamento de localização parado.'){
   $('deviceLocationStop').disabled=true;
   $('deviceLocationStatus').textContent=message;
 }
-function renderDeviceLocationPosition(position){
-  if(!deviceLocationMap||!deviceLocationMaps)return;
-  const point={lat:position.coords.latitude,lng:position.coords.longitude};
-  const accuracy=position.coords.accuracy;
+function initializeDeviceLocationMap(maps){
+  deviceLocationMaps=maps;
+  if(!deviceLocationMap){
+    deviceLocationMap=new maps.Map($('deviceLocationMap'),{
+      center:{lat:-14.235,lng:-51.925},
+      zoom:4,
+      mapTypeId:'roadmap',
+      streetViewControl:false,
+      fullscreenControl:true
+    });
+  }
+  requestAnimationFrame(()=>maps.event.trigger(deviceLocationMap,'resize'));
+}
+async function ensureDeviceLocationMap(){
+  initializeDeviceLocationMap(await loadGoogleMaps());
+}
+function setDeviceLocationMapPoint(point,accuracy){
   deviceLocationMap.setCenter(point);
   deviceLocationMap.setZoom(17);
   if(!deviceLocationMarker){
-    deviceLocationMarker=new deviceLocationMaps.Marker({map:deviceLocationMap,position,title:'Este celular'});
+    deviceLocationMarker=new deviceLocationMaps.Marker({map:deviceLocationMap,position:point,title:'Este celular'});
     deviceLocationAccuracy=new deviceLocationMaps.Circle({
       map:deviceLocationMap,
       strokeColor:'#2563eb',
@@ -1220,6 +1237,12 @@ function renderDeviceLocationPosition(position){
   }
   deviceLocationAccuracy.setCenter(point);
   deviceLocationAccuracy.setRadius(accuracy);
+}
+function renderDeviceLocationPosition(position){
+  if(!deviceLocationMap||!deviceLocationMaps)return;
+  const point={lat:position.coords.latitude,lng:position.coords.longitude};
+  const accuracy=position.coords.accuracy;
+  setDeviceLocationMapPoint(point,accuracy);
   $('deviceLocationStatus').textContent=`Atualizado às ${new Date(position.timestamp).toLocaleTimeString('pt-BR')} · Precisão aproximada: ${Math.round(accuracy)} m · ${point.lat.toFixed(6)}, ${point.lng.toFixed(6)}`;
 }
 function deviceLocationErrorMessage(error){
@@ -1232,17 +1255,34 @@ function deviceLocationErrorMessage(error){
 function renderDeviceLocationHistory(){
   const list=$('deviceLocationHistoryList');
   list.replaceChildren();
-  for(const entry of deviceLocationHistory){
-    const row=document.createElement('article');
+  for(const [index,entry] of deviceLocationHistory.entries()){
+    const row=document.createElement('button');
+    row.type='button';
     row.className='device-location-history-entry';
+    row.dataset.locationIndex=String(index);
     const time=document.createElement('strong');
     time.textContent=new Date(entry.recorded_at).toLocaleString('pt-BR');
+    row.setAttribute('aria-label',`Mostrar localização salva em ${time.textContent} no mapa`);
     const details=document.createElement('small');
     details.textContent=`${Number(entry.latitude).toFixed(6)}, ${Number(entry.longitude).toFixed(6)} · Precisão aproximada: ${Math.round(Number(entry.accuracy))} m`;
     row.append(time,details);
     list.append(row);
   }
   $('deviceLocationHistoryMore').hidden=!deviceLocationHistoryHasMore;
+}
+async function showDeviceLocationHistoryEntry(entry){
+  if(deviceLocationWatchId!==null||deviceLocationStartPending){
+    stopDeviceLocation('Acompanhamento parado para visualizar uma localização do histórico.');
+  }
+  try{
+    await ensureDeviceLocationMap();
+    const point={lat:Number(entry.latitude),lng:Number(entry.longitude)};
+    setDeviceLocationMapPoint(point,Number(entry.accuracy));
+    $('deviceLocationStatus').textContent=`Localização salva em ${new Date(entry.recorded_at).toLocaleString('pt-BR')}.`;
+    $('deviceLocationMap').scrollIntoView({behavior:'smooth',block:'center'});
+  }catch(error){
+    $('deviceLocationStatus').textContent='Não foi possível abrir o mapa: '+error.message;
+  }
 }
 async function loadDeviceLocationHistory(reset=false){
   if(deviceLocationHistoryLoading)return;
@@ -1354,17 +1394,7 @@ async function startDeviceLocation(){
   try{
     const maps=await loadGoogleMaps();
     if(!deviceLocationStartPending||activeView!=='location')return;
-    deviceLocationMaps=maps;
-    if(!deviceLocationMap){
-      deviceLocationMap=new maps.Map($('deviceLocationMap'),{
-        center:{lat:-14.235,lng:-51.925},
-        zoom:4,
-        mapTypeId:'roadmap',
-        streetViewControl:false,
-        fullscreenControl:true
-      });
-    }
-    requestAnimationFrame(()=>maps.event.trigger(deviceLocationMap,'resize'));
+    initializeDeviceLocationMap(maps);
     deviceLocationStartPending=false;
     if(deviceLocationLastPosition)renderDeviceLocationPosition(deviceLocationLastPosition);
   }catch(error){
@@ -1376,6 +1406,12 @@ async function startDeviceLocation(){
 $('deviceLocationStart').addEventListener('click',()=>void startDeviceLocation());
 $('deviceLocationSave').addEventListener('click',saveDeviceLocation);
 $('deviceLocationStop').addEventListener('click',()=>stopDeviceLocation());
+$('deviceLocationHistoryList').addEventListener('click',event=>{
+  const row=event.target.closest('[data-location-index]');
+  if(!row)return;
+  const entry=deviceLocationHistory[Number(row.dataset.locationIndex)];
+  if(entry)void showDeviceLocationHistoryEntry(entry);
+});
 $('deviceLocationHistoryRefresh').addEventListener('click',()=>void loadDeviceLocationHistory(true));
 $('deviceLocationHistoryMore').addEventListener('click',()=>void loadDeviceLocationHistory());
 document.addEventListener('visibilitychange',()=>{
