@@ -44,6 +44,12 @@ h1{font-size:22px;margin:0}
 .workspace-tab-close{width:30px;height:30px;flex:none;padding:0;border:0;background:transparent;color:var(--mut);cursor:pointer}
 .workspace-tab-close:hover{color:var(--out)}
 .workspace-view[hidden]{display:none}
+#deviceLocationMap{width:100%;height:min(62dvh,560px);min-height:300px;margin:12px 0;border:1px solid var(--bd);border-radius:10px}
+.device-location-note{margin:0;color:var(--mut);font-size:13px}
+.device-location-status{min-height:24px;color:var(--mut)}
+.device-location-controls{display:flex;gap:8px;flex-wrap:wrap}
+.device-location-controls button{min-height:44px}
+.device-location-start{background:var(--ac);border-color:var(--ac);color:#fff;font-weight:650}
 .card{background:var(--card);border:1px solid var(--bd);border-radius:14px;padding:14px;margin-bottom:14px}
 .sum{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px}
 .sum.extra{grid-template-columns:repeat(4,1fr);margin-top:10px}
@@ -397,6 +403,7 @@ button:disabled{cursor:wait;opacity:.6}
     <button class="nav-item" type="button" data-view="movements"><span class="nav-icon" aria-hidden="true">↕</span>Lançamentos</button>
     <button class="nav-item" type="button" data-view="finance"><span class="nav-icon" aria-hidden="true">$</span>Financeiro</button>
     <button class="nav-item" type="button" data-view="crops"><span class="nav-icon" aria-hidden="true">🌾</span>Lavouras</button>
+    <button class="nav-item" id="locationNav" type="button" data-view="location" hidden><span class="nav-icon" aria-hidden="true">📍</span>Localização</button>
     <div class="nav-group">
       <button class="nav-item nav-toggle" type="button" data-menu-toggle="livestock" aria-expanded="false" aria-controls="livestockSubmenu"><span class="nav-icon" aria-hidden="true">🐄</span>Agropecuária<span class="nav-chevron" aria-hidden="true">›</span></button>
       <div class="nav-submenu" id="livestockSubmenu" hidden>
@@ -767,6 +774,16 @@ button:disabled{cursor:wait;opacity:.6}
   <div id="activityLogList" aria-live="polite"><div class="empty">Carregando logs...</div></div>
 </div>
 </section>
+
+<section class="workspace-view" id="view-location" data-view-panel="location" hidden>
+<div class="card">
+  <div class="top"><h2>Localização deste celular</h2></div>
+  <p class="device-location-note">Toque em “Iniciar” e permita o acesso à localização no navegador. O sistema não grava as coordenadas; como o mapa é fornecido pelo Google Maps, o Google pode processá-las para centralizar o mapa.</p>
+  <div id="deviceLocationMap" role="application" aria-label="Mapa mostrando a localização atual deste celular"></div>
+  <div class="device-location-controls"><button type="button" id="deviceLocationStart" class="device-location-start">Iniciar localização em tempo real</button><button type="button" id="deviceLocationStop" class="secondary-button" disabled>Parar</button></div>
+  <p id="deviceLocationStatus" class="device-location-status" role="status" aria-live="polite">A localização está desligada.</p>
+</div>
+</section>
 </main>
 </div>
 </div>
@@ -792,7 +809,7 @@ button:disabled{cursor:wait;opacity:.6}
 import { buildCsv, calculateFinance, prepareBackup } from '/shared/data.js';
 
 const $=id=>document.getElementById(id);
-const viewTitles={dashboard:'Dashboard',movements:'Lançamentos',finance:'Financeiro',crops:'Lavouras',cows:'Vacas: cio e parto',calves:'Bezerros',deletions:'Histórico de exclusões',activity:'Logs do sistema'};
+const viewTitles={dashboard:'Dashboard',movements:'Lançamentos',finance:'Financeiro',crops:'Lavouras',location:'Localização',cows:'Vacas: cio e parto',calves:'Bezerros',deletions:'Histórico de exclusões',activity:'Logs do sistema'};
 let openViews=['dashboard'],activeView='dashboard';
 function renderWorkspaceTabs(){
   $('workspaceTabs').innerHTML=openViews.map(view=>{
@@ -801,7 +818,8 @@ function renderWorkspaceTabs(){
   }).join('');
 }
 function activateView(view){
-  if(!viewTitles[view]||(['deletions','activity'].includes(view)&&me!=='alipio'))return;
+  if(!viewTitles[view]||(['deletions','activity','location'].includes(view)&&me!=='alipio'))return;
+  if(activeView==='location'&&view!=='location')stopDeviceLocation('Acompanhamento pausado ao sair desta tela.');
   activeView=view;
   document.querySelectorAll('[data-view-panel]').forEach(panel=>{panel.hidden=panel.dataset.viewPanel!==view});
   document.querySelectorAll('.nav-item[data-view]').forEach(button=>{
@@ -822,7 +840,7 @@ function activateView(view){
   renderWorkspaceTabs();
 }
 function selectView(view){
-  if(!viewTitles[view]||(['deletions','activity'].includes(view)&&me!=='alipio'))return;
+  if(!viewTitles[view]||(['deletions','activity','location'].includes(view)&&me!=='alipio'))return;
   if(!openViews.includes(view))openViews.push(view);
   activateView(view);
 }
@@ -1159,6 +1177,88 @@ function loadGoogleMaps(){
   });
   return googleMapsPromise;
 }
+let deviceLocationMap=null,deviceLocationMarker=null,deviceLocationAccuracy=null,deviceLocationWatchId=null,deviceLocationStartPending=false;
+function stopDeviceLocation(message='Acompanhamento de localização parado.'){
+  deviceLocationStartPending=false;
+  if(deviceLocationWatchId!==null){
+    navigator.geolocation.clearWatch(deviceLocationWatchId);
+    deviceLocationWatchId=null;
+  }
+  $('deviceLocationStart').disabled=false;
+  $('deviceLocationStop').disabled=true;
+  $('deviceLocationStatus').textContent=message;
+}
+async function startDeviceLocation(){
+  if(deviceLocationWatchId!==null||deviceLocationStartPending)return;
+  if(!navigator.geolocation){
+    $('deviceLocationStatus').textContent='Este navegador não oferece localização. Confira também se o acesso está sendo feito por uma conexão segura (HTTPS).';
+    return;
+  }
+  deviceLocationStartPending=true;
+  $('deviceLocationStart').disabled=true;
+  $('deviceLocationStop').disabled=false;
+  $('deviceLocationStatus').textContent='Carregando o mapa para iniciar...';
+  try{
+    const maps=await loadGoogleMaps();
+    if(!deviceLocationStartPending||activeView!=='location')return;
+    if(!deviceLocationMap){
+      deviceLocationMap=new maps.Map($('deviceLocationMap'),{
+        center:{lat:-14.235,lng:-51.925},
+        zoom:4,
+        mapTypeId:'roadmap',
+        streetViewControl:false,
+        fullscreenControl:true
+      });
+    }
+    requestAnimationFrame(()=>maps.event.trigger(deviceLocationMap,'resize'));
+    deviceLocationWatchId=navigator.geolocation.watchPosition(position=>{
+      const point={lat:position.coords.latitude,lng:position.coords.longitude};
+      const accuracy=position.coords.accuracy;
+      deviceLocationMap.setCenter(point);
+      deviceLocationMap.setZoom(17);
+      if(!deviceLocationMarker){
+        deviceLocationMarker=new maps.Marker({map:deviceLocationMap,position,title:'Este celular'});
+        deviceLocationAccuracy=new maps.Circle({
+          map:deviceLocationMap,
+          strokeColor:'#2563eb',
+          strokeOpacity:.8,
+          strokeWeight:2,
+          fillColor:'#2563eb',
+          fillOpacity:.12
+        });
+      }else{
+        deviceLocationMarker.setPosition(point);
+      }
+      deviceLocationAccuracy.setCenter(point);
+      deviceLocationAccuracy.setRadius(accuracy);
+      $('deviceLocationStatus').textContent=`Atualizado às ${new Date(position.timestamp).toLocaleTimeString('pt-BR')} · Precisão aproximada: ${Math.round(accuracy)} m · ${point.lat.toFixed(6)}, ${point.lng.toFixed(6)}`;
+    },error=>{
+      const message=error.code===1
+        ?'A permissão de localização foi negada. Autorize o acesso à localização nas configurações do navegador e tente novamente.'
+        :error.code===3
+          ?'A localização demorou para responder. Mantenha o acompanhamento ligado ou tente novamente.'
+          :'Não foi possível obter a localização. Confira o GPS e a permissão do navegador.';
+      if(error.code===1)stopDeviceLocation(message);
+      else $('deviceLocationStatus').textContent=message;
+    },{enableHighAccuracy:true,timeout:20000,maximumAge:0});
+    deviceLocationStartPending=false;
+    $('deviceLocationStatus').textContent='Aguardando a localização do celular...';
+  }catch(error){
+    if(deviceLocationStartPending){
+      deviceLocationStartPending=false;
+      $('deviceLocationStart').disabled=false;
+      $('deviceLocationStop').disabled=true;
+      $('deviceLocationStatus').textContent='Não foi possível carregar o mapa: '+error.message;
+    }
+  }
+}
+$('deviceLocationStart').addEventListener('click',()=>void startDeviceLocation());
+$('deviceLocationStop').addEventListener('click',()=>stopDeviceLocation());
+document.addEventListener('visibilitychange',()=>{
+  if(document.visibilityState==='hidden'&&activeView==='location'&&(deviceLocationWatchId!==null||deviceLocationStartPending)){
+    stopDeviceLocation('Acompanhamento pausado porque o aplicativo ficou em segundo plano.');
+  }
+});
 function polygonCenter(points){
   if(!points.length)return null;
   return{
@@ -2201,6 +2301,7 @@ function enter(n){
   me=n;$('login').hidden=true;$('who').value=cap(n);$('who').readOnly=true;
   $('deletionAuditNav').hidden=n!=='alipio';
   $('activityLogNav').hidden=n!=='alipio';
+  $('locationNav').hidden=n!=='alipio';
   $('me').innerHTML=`Logado como <b>${cap(n)}</b> <button id="lout" class="x">Sair</button>`;
   void startApp().catch(error=>note(error.message));
 }
