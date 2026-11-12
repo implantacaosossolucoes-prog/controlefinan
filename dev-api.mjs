@@ -9,6 +9,7 @@ const records = new Map([...collections].map(name => [name, new Map()]));
 const calfPhotos = new Map();
 const deletionAudit = [];
 const activityLogs = [];
+const locationHistory = [];
 const password = process.env.LOCAL_DEMO_PASSWORD || 'teste123';
 
 function send(response, status, payload, headers = {}) {
@@ -127,6 +128,41 @@ export default async function devApiHandler(request, response) {
         if (Number.isInteger(error.statusCode)) return send(response, error.statusCode, { error: error.message });
         throw error;
       }
+    }
+
+    if (route === 'location-history') {
+      if (sessionFor(request) !== 'alipio') {
+        return send(response, 403, { error: 'Somente o usuário Alipio pode acessar o histórico de localização.' });
+      }
+      if (request.method === 'POST') {
+        const body = await parseBody(request);
+        if (!body || typeof body !== 'object' || Array.isArray(body)
+          || !Number.isFinite(body.latitude) || body.latitude < -90 || body.latitude > 90
+          || !Number.isFinite(body.longitude) || body.longitude < -180 || body.longitude > 180
+          || !Number.isFinite(body.accuracy) || body.accuracy < 0 || body.accuracy > 10_000_000) {
+          return send(response, 400, { error: 'A localização contém coordenadas ou precisão inválidas.' });
+        }
+        const entry = {
+          id: randomUUID(),
+          username: 'alipio',
+          latitude: body.latitude,
+          longitude: body.longitude,
+          accuracy: body.accuracy,
+          recorded_at: new Date().toISOString()
+        };
+        locationHistory.push(entry);
+        return send(response, 201, { entry });
+      }
+      if (request.method === 'GET') {
+        const offsetText = url.searchParams.get('offset') || '0';
+        if (!/^(0|[1-9]\d*)$/.test(offsetText) || Number(offsetText) > 1_000_000) {
+          return send(response, 400, { error: 'A página do histórico é inválida.' });
+        }
+        const offset = Number(offsetText);
+        const entries = locationHistory.slice().reverse().slice(offset, offset + 101);
+        return send(response, 200, { entries: entries.slice(0, 100), hasMore: entries.length > 100 });
+      }
+      return send(response, 405, { error: 'Método não permitido.' }, { Allow: 'GET, POST' });
     }
 
     if (route === 'activity') {

@@ -27,6 +27,17 @@ create table if not exists public.activity_logs (
 create index if not exists activity_logs_created_at_idx
   on public.activity_logs (created_at desc, id desc);
 
+create table if not exists public.location_history (
+  id text primary key,
+  username text not null check (username = 'alipio'),
+  latitude double precision not null check (latitude between -90 and 90),
+  longitude double precision not null check (longitude between -180 and 180),
+  accuracy double precision not null check (accuracy between 0 and 10000000),
+  recorded_at timestamptz not null default now()
+);
+create index if not exists location_history_recorded_at_idx
+  on public.location_history (recorded_at desc, id desc);
+
 insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
 values ('animal-photos', 'animal-photos', false, 700000, array['image/jpeg']::text[])
 on conflict (id) do update
@@ -60,6 +71,9 @@ grant all on table public.deletion_audit to service_role;
 alter table public.activity_logs enable row level security;
 revoke all on table public.activity_logs from public, anon, authenticated;
 grant all on table public.activity_logs to service_role;
+alter table public.location_history enable row level security;
+revoke all on table public.location_history from public, anon, authenticated;
+grant all on table public.location_history to service_role;
 
 create or replace function public.write_activity_logs(p_username text, p_events jsonb)
 returns integer

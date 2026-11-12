@@ -165,7 +165,7 @@ async function supabaseRequest(path, options = {}) {
   if (!key.startsWith('sb_secret_')) {
     headers.Authorization = `Bearer ${key}`;
   }
-  const endpoint = path.startsWith('/rpc/') || path.startsWith('/deletion_audit') || path.startsWith('/activity_logs')
+  const endpoint = path.startsWith('/rpc/') || path.startsWith('/deletion_audit') || path.startsWith('/activity_logs') || path.startsWith('/location_history')
     ? `${url}/rest/v1${path}`
     : `${url}/rest/v1/records${path}`;
   const response = await fetch(endpoint, {
@@ -294,6 +294,7 @@ export default async function handler(request, response) {
       records: ['GET', 'POST', 'PUT', 'DELETE'],
       deletions: ['GET'],
       activity: ['GET', 'POST'],
+      'location-history': ['GET', 'POST'],
       restore: ['POST'],
       'pay-bill': ['POST'],
       'calf-photos': ['GET', 'POST'],
@@ -359,6 +360,46 @@ export default async function handler(request, response) {
         if (Number.isInteger(error.statusCode)) return send(response, error.statusCode, { error: error.message });
         throw error;
       }
+    }
+
+    if (route === 'location-history') {
+      if (session.username !== 'alipio') {
+        return send(response, 403, { error: 'Somente o usuário Alipio pode acessar o histórico de localização.' });
+      }
+      if (request.method === 'POST') {
+        const body = await parseBody(request);
+        if (!body || typeof body !== 'object' || Array.isArray(body)
+          || !Number.isFinite(body.latitude) || body.latitude < -90 || body.latitude > 90
+          || !Number.isFinite(body.longitude) || body.longitude < -180 || body.longitude > 180
+          || !Number.isFinite(body.accuracy) || body.accuracy < 0 || body.accuracy > 10_000_000) {
+          return send(response, 400, { error: 'A localização contém coordenadas ou precisão inválidas.' });
+        }
+        const entries = await supabaseRequest('/location_history?select=id,latitude,longitude,accuracy,recorded_at', {
+          method: 'POST',
+          headers: { Prefer: 'return=representation' },
+          body: JSON.stringify({
+            id: randomUUID(),
+            username: session.username,
+            latitude: body.latitude,
+            longitude: body.longitude,
+            accuracy: body.accuracy
+          })
+        });
+        if (!entries?.[0]) throw new Error('Supabase did not return the saved location');
+        return send(response, 201, { entry: entries[0] });
+      }
+      const offsetText = params.get('offset') || '0';
+      if (!/^(0|[1-9]\d*)$/.test(offsetText) || Number(offsetText) > 1_000_000) {
+        return send(response, 400, { error: 'A página do histórico é inválida.' });
+      }
+      const query = new URLSearchParams({
+        select: 'id,latitude,longitude,accuracy,recorded_at',
+        order: 'recorded_at.desc,id.desc',
+        limit: '101',
+        offset: offsetText
+      });
+      const entries = await supabaseRequest(`/location_history?${query}`);
+      return send(response, 200, { entries: entries.slice(0, 100), hasMore: entries.length > 100 });
     }
 
     if (route === 'activity') {

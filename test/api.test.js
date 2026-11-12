@@ -189,6 +189,68 @@ test('deletion history is accessible only to Alipio', async () => {
   }
 });
 
+test('location history is private to Alipio and stores validated points', async () => {
+  const gabrielCookie = await loginCookie();
+  const alipioCookie = await loginCookie('alipio');
+  const previousFetch = globalThis.fetch;
+  const calls = [];
+  globalThis.fetch = async (url, options) => {
+    calls.push({ url: String(url), options });
+    const body = JSON.parse(options.body || '{}');
+    const entry = {
+      id: body.id || 'saved-location',
+      latitude: body.latitude ?? -23.5,
+      longitude: body.longitude ?? -46.6,
+      accuracy: body.accuracy ?? 12,
+      recorded_at: '2026-11-12T13:00:00.000Z'
+    };
+    return new Response(JSON.stringify(options.method === 'POST' ? [entry] : [entry]), {
+      status: options.method === 'POST' ? 201 : 200,
+      headers: { 'Content-Type': 'application/json' }
+    });
+  };
+  try {
+    const denied = await request('GET', '/api/location-history', undefined, gabrielCookie);
+    assert.equal(denied.statusCode, 403);
+    const deniedWrite = await request('POST', '/api/location-history', {
+      latitude: -23.5, longitude: -46.6, accuracy: 12
+    }, gabrielCookie);
+    assert.equal(deniedWrite.statusCode, 403);
+    const invalid = await request('POST', '/api/location-history', {
+      latitude: 91, longitude: -46.6, accuracy: 12
+    }, alipioCookie);
+    assert.equal(invalid.statusCode, 400);
+    assert.equal(calls.length, 0);
+
+    const saved = await request('POST', '/api/location-history', {
+      latitude: -23.5, longitude: -46.6, accuracy: 12
+    }, alipioCookie);
+    assert.equal(saved.statusCode, 201);
+    const inserted = JSON.parse(calls[0].options.body);
+    assert.deepEqual({
+      username: inserted.username,
+      latitude: inserted.latitude,
+      longitude: inserted.longitude,
+      accuracy: inserted.accuracy
+    }, {
+      username: 'alipio',
+      latitude: -23.5,
+      longitude: -46.6,
+      accuracy: 12
+    });
+    assert.match(calls[0].url, /\/rest\/v1\/location_history\?/);
+
+    const history = await request('GET', '/api/location-history', undefined, alipioCookie);
+    assert.equal(history.statusCode, 200);
+    assert.equal(history.json().entries.length, 1);
+    assert.equal(history.json().hasMore, false);
+    assert.match(calls[1].url, /\/rest\/v1\/location_history\?/);
+    assert.match(calls[1].url, /limit=101/);
+  } finally {
+    globalThis.fetch = previousFetch;
+  }
+});
+
 test('production data routes require a signed-in session', async () => {
   const response = await request('GET', '/api/records');
   assert.equal(response.statusCode, 401);

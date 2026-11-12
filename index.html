@@ -50,6 +50,9 @@ h1{font-size:22px;margin:0}
 .device-location-controls{display:flex;gap:8px;flex-wrap:wrap}
 .device-location-controls button{min-height:44px}
 .device-location-start{background:var(--ac);border-color:var(--ac);color:#fff;font-weight:650}
+.device-location-history-entry{display:flex;flex-direction:column;gap:3px;padding:10px 0;border-top:1px solid var(--bd)}
+.device-location-history-entry:first-child{border-top:0}
+.device-location-history-entry small{color:var(--mut)}
 .card{background:var(--card);border:1px solid var(--bd);border-radius:14px;padding:14px;margin-bottom:14px}
 .sum{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px}
 .sum.extra{grid-template-columns:repeat(4,1fr);margin-top:10px}
@@ -778,10 +781,16 @@ button:disabled{cursor:wait;opacity:.6}
 <section class="workspace-view" id="view-location" data-view-panel="location" hidden>
 <div class="card">
   <div class="top"><h2>Localização deste celular</h2></div>
-  <p class="device-location-note">Toque em “Iniciar” e permita o acesso à localização no navegador. O sistema não grava as coordenadas; como o mapa é fornecido pelo Google Maps, o Google pode processá-las para centralizar o mapa.</p>
+  <p class="device-location-note">“Iniciar localização em tempo real” acompanha o aparelho enquanto esta tela estiver aberta. Para salvar um ponto no histórico, toque em “Obter localização e salvar”. Cada toque grava uma posição no servidor, sem exclusão automática; somente Alipio pode acessar. O Google Maps pode processar as coordenadas para exibir o mapa.</p>
   <div id="deviceLocationMap" role="application" aria-label="Mapa mostrando a localização atual deste celular"></div>
-  <div class="device-location-controls"><button type="button" id="deviceLocationStart" class="device-location-start">Iniciar localização em tempo real</button><button type="button" id="deviceLocationStop" class="secondary-button" disabled>Parar</button></div>
+  <div class="device-location-controls"><button type="button" id="deviceLocationStart" class="device-location-start">Iniciar localização em tempo real</button><button type="button" id="deviceLocationSave" class="secondary-button">Obter localização e salvar</button><button type="button" id="deviceLocationStop" class="secondary-button" disabled>Parar</button></div>
   <p id="deviceLocationStatus" class="device-location-status" role="status" aria-live="polite">A localização está desligada.</p>
+</div>
+<div class="card">
+  <div class="top"><h2>Histórico de localizações</h2><button type="button" id="deviceLocationHistoryRefresh" class="secondary-button">Atualizar</button></div>
+  <div id="deviceLocationHistoryStatus" class="device-location-note" role="status" aria-live="polite">Carregando histórico...</div>
+  <div id="deviceLocationHistoryList"></div>
+  <button type="button" id="deviceLocationHistoryMore" class="secondary-button" hidden>Carregar localizações anteriores</button>
 </div>
 </section>
 </main>
@@ -837,6 +846,7 @@ function activateView(view){
   $('viewTitle').textContent=viewTitles[view];
   if(view==='deletions')void loadDeletionAudit();
   if(view==='activity')void loadActivityLogs();
+  if(view==='location')void loadDeviceLocationHistory(true);
   renderWorkspaceTabs();
 }
 function selectView(view){
@@ -1178,6 +1188,7 @@ function loadGoogleMaps(){
   return googleMapsPromise;
 }
 let deviceLocationMap=null,deviceLocationMaps=null,deviceLocationMarker=null,deviceLocationAccuracy=null,deviceLocationWatchId=null,deviceLocationStartPending=false,deviceLocationLastPosition=null;
+let deviceLocationHistory=[],deviceLocationHistoryOffset=0,deviceLocationHistoryHasMore=false,deviceLocationHistoryLoading=false,deviceLocationHistoryReloadPending=false;
 function stopDeviceLocation(message='Acompanhamento de localização parado.'){
   deviceLocationStartPending=false;
   if(deviceLocationWatchId!==null){
@@ -1210,6 +1221,107 @@ function renderDeviceLocationPosition(position){
   deviceLocationAccuracy.setCenter(point);
   deviceLocationAccuracy.setRadius(accuracy);
   $('deviceLocationStatus').textContent=`Atualizado às ${new Date(position.timestamp).toLocaleTimeString('pt-BR')} · Precisão aproximada: ${Math.round(accuracy)} m · ${point.lat.toFixed(6)}, ${point.lng.toFixed(6)}`;
+}
+function deviceLocationErrorMessage(error){
+  return error.code===1
+    ?'Acesso à localização negado. Nas permissões deste site no navegador, altere “Localização” para “Permitir” e tente novamente. Confira também se o navegador tem permissão de localização no celular e se o site usa HTTPS.'
+    :error.code===3
+      ?'A localização demorou para responder. Mantenha o acompanhamento ligado ou tente novamente.'
+      :'Não foi possível obter a localização. Confira o GPS e a permissão do navegador.';
+}
+function renderDeviceLocationHistory(){
+  const list=$('deviceLocationHistoryList');
+  list.replaceChildren();
+  for(const entry of deviceLocationHistory){
+    const row=document.createElement('article');
+    row.className='device-location-history-entry';
+    const time=document.createElement('strong');
+    time.textContent=new Date(entry.recorded_at).toLocaleString('pt-BR');
+    const details=document.createElement('small');
+    details.textContent=`${Number(entry.latitude).toFixed(6)}, ${Number(entry.longitude).toFixed(6)} · Precisão aproximada: ${Math.round(Number(entry.accuracy))} m`;
+    row.append(time,details);
+    list.append(row);
+  }
+  $('deviceLocationHistoryMore').hidden=!deviceLocationHistoryHasMore;
+}
+async function loadDeviceLocationHistory(reset=false){
+  if(deviceLocationHistoryLoading)return;
+  if(reset){
+    deviceLocationHistory=[];
+    deviceLocationHistoryOffset=0;
+    deviceLocationHistoryHasMore=false;
+    renderDeviceLocationHistory();
+    $('deviceLocationHistoryStatus').textContent='Carregando histórico...';
+  }
+  deviceLocationHistoryLoading=true;
+  $('deviceLocationHistoryRefresh').disabled=true;
+  $('deviceLocationHistoryMore').disabled=true;
+  try{
+    const result=await apiRequest('/api/location-history?offset='+deviceLocationHistoryOffset);
+    deviceLocationHistory.push(...result.entries);
+    deviceLocationHistoryOffset+=result.entries.length;
+    deviceLocationHistoryHasMore=result.hasMore;
+    const count=deviceLocationHistory.length;
+    const label=count===1?'1 localização':`${count} localizações`;
+    $('deviceLocationHistoryStatus').textContent=deviceLocationHistory.length
+      ?`Mostrando ${label}${result.hasMore?' mais recentes. Há registros anteriores.':' salvas no histórico.'}`
+      :'Ainda não há localizações salvas.';
+    renderDeviceLocationHistory();
+  }catch(error){
+    $('deviceLocationHistoryStatus').textContent='Não foi possível carregar o histórico: '+error.message;
+  }finally{
+    deviceLocationHistoryLoading=false;
+    $('deviceLocationHistoryRefresh').disabled=false;
+    $('deviceLocationHistoryMore').disabled=false;
+    if(deviceLocationHistoryReloadPending){
+      deviceLocationHistoryReloadPending=false;
+      void loadDeviceLocationHistory(true);
+    }
+  }
+}
+function saveDeviceLocation(){
+  const button=$('deviceLocationSave');
+  if(!navigator.geolocation){
+    $('deviceLocationStatus').textContent='Este navegador não oferece localização. Confira se o acesso está sendo feito por uma conexão segura (HTTPS).';
+    return;
+  }
+  button.disabled=true;
+  $('deviceLocationStatus').textContent='Obtendo a localização para salvar no histórico...';
+  try{
+    navigator.geolocation.getCurrentPosition(async position=>{
+      deviceLocationLastPosition=position;
+      if(deviceLocationMap)renderDeviceLocationPosition(position);
+      try{
+        const result=await apiRequest('/api/location-history',{
+          method:'POST',
+          body:JSON.stringify({
+            latitude:position.coords.latitude,
+            longitude:position.coords.longitude,
+            accuracy:position.coords.accuracy
+          })
+        });
+        if(deviceLocationHistoryLoading){
+          deviceLocationHistoryReloadPending=true;
+        }else if(!deviceLocationHistory.some(entry=>entry.id===result.entry.id)){
+          deviceLocationHistory.unshift(result.entry);
+          deviceLocationHistoryOffset++;
+        }
+        $('deviceLocationHistoryStatus').textContent=`Localização salva às ${new Date(result.entry.recorded_at).toLocaleString('pt-BR')}.`;
+        $('deviceLocationStatus').textContent='Localização registrada no histórico.';
+        renderDeviceLocationHistory();
+      }catch(error){
+        $('deviceLocationStatus').textContent='Não foi possível salvar a localização no histórico: '+error.message;
+      }finally{
+        button.disabled=false;
+      }
+    },error=>{
+      $('deviceLocationStatus').textContent=deviceLocationErrorMessage(error);
+      button.disabled=false;
+    },{enableHighAccuracy:true,timeout:20000,maximumAge:0});
+  }catch(error){
+    $('deviceLocationStatus').textContent='Não foi possível solicitar a localização: '+error.message;
+    button.disabled=false;
+  }
 }
 async function startDeviceLocation(){
   if(deviceLocationWatchId!==null||deviceLocationStartPending)return;
@@ -1262,7 +1374,10 @@ async function startDeviceLocation(){
   }
 }
 $('deviceLocationStart').addEventListener('click',()=>void startDeviceLocation());
+$('deviceLocationSave').addEventListener('click',saveDeviceLocation);
 $('deviceLocationStop').addEventListener('click',()=>stopDeviceLocation());
+$('deviceLocationHistoryRefresh').addEventListener('click',()=>void loadDeviceLocationHistory(true));
+$('deviceLocationHistoryMore').addEventListener('click',()=>void loadDeviceLocationHistory());
 document.addEventListener('visibilitychange',()=>{
   if(document.visibilityState==='hidden'&&activeView==='location'&&(deviceLocationWatchId!==null||deviceLocationStartPending)){
     stopDeviceLocation('Acompanhamento pausado porque o aplicativo ficou em segundo plano.');
